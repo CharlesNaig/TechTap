@@ -1,0 +1,7 @@
+# TechTap — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+pyserial>=3.5
+rich>=13.0.0
+colorama>=0.4.6
+websockets>=12.0

@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "techtap"
+version = "1.0.0"
+description = "Smart Identity via Tap — CLI NFC tag writer & reader"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "TechTap"}
+]
+keywords = ["nfc", "rfid", "ndef", "arduino", "ntag", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "pyserial>=3.5",
+    "rich>=13.0.0",
+    "colorama>=0.4.6",
+    "websockets>=12.0",
+]
+
+[project.scripts]
+techtap = "techtap.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/CharlesNaig/TechTap"
+Repository = "https://github.com/CharlesNaig/TechTap"
+
+[tool.setuptools]
+packages = ["techtap"]

@@ -1,0 +1,15 @@
+{
+  "serial": {
+    "port": "COM24",
+    "baudrate": 115200,
+    "timeout": 5,
+    "write_timeout": 5
+  },
+  "reader_mode": "phone",
+  "module": "PN532",
+  "bulk_mode": false,
+  "log_writes": true,
+  "verify_after_write": true,
+  "max_retries": 5,
+  "theme": "dark"
+}
