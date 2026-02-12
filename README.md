@@ -35,6 +35,7 @@ TechTap is a lightweight **CLI clone of NFC Tools** that communicates with an Ar
 | **Social Media** | Auto-resolves 17+ platforms from username |
 | **WiFi Writer** | Tap to connect (Android 5+) |
 | **Custom Text** | Write any plain text message |
+| **Tag Format** | Write empty NDEF container (prepare tag) |
 | **Tag Lock** | Permanent read-only protection |
 | **Tag Erase** | Clean wipe to factory state |
 | **Tag Reader** | Read and parse NDEF contents |
@@ -185,25 +186,26 @@ techtap
 ## Usage
 
 ```
-╭───────────────────────────────╮
-│       TECHTAP CLI             │
-├──────┬────────────────────────┤
-│ [1]  │ Write Website URL      │
-│ [2]  │ Write Contact (vCard)  │
-│ [3]  │ Write Phone Number     │
-│ [4]  │ Write Email Address    │
-│ [5]  │ Write Social Media     │
-│ [6]  │ Write Custom Text      │
-│ [7]  │ Write WiFi Credentials │
-│ [8]  │ Erase Tag              │
-│ [9]  │ Lock Tag               │
-│ [10] │ Read Tag               │
-│ [11] │ Tag Info               │
-│ [12] │ Bulk Write Mode        │
-│ [13] │ Write History          │
-│ [14] │ Settings               │
-│ [0]  │ Exit                   │
-╰──────┴────────────────────────╯
+╭────────────────────────────────╮
+│       TECHTAP CLI              │
+├──────┬─────────────────────────┤
+│ [1]  │ Write Website URL       │
+│ [2]  │ Write Contact (vCard)   │
+│ [3]  │ Write Phone Number      │
+│ [4]  │ Write Email Address     │
+│ [5]  │ Write Social Media      │
+│ [6]  │ Write Custom Text       │
+│ [7]  │ Write WiFi Credentials  │
+│ [8]  │ Format Tag (NDEF)       │
+│ [9]  │ Erase Tag               │
+│ [10] │ Lock Tag                │
+│ [11] │ Read Tag                │
+│ [12] │ Tag Info                │
+│ [13] │ Bulk Write Mode         │
+│ [14] │ Write History           │
+│ [15] │ Settings                │
+│ [0]  │ Exit                    │
+╰──────┴─────────────────────────╯
 ```
 
 ### Example: Write a URL

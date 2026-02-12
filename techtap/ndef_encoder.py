@@ -103,6 +103,15 @@ def _wrap_tlv(ndef_message: bytes) -> bytes:
     return tlv
 
 
+def encode_empty_ndef() -> bytes:
+    """
+    Create an empty NDEF TLV container.
+    This 'formats' a tag for NDEF use without writing any records.
+    Bytes: 0x03 (NDEF TLV type) + 0x00 (zero length) + 0xFE (terminator).
+    """
+    return bytes([0x03, 0x00, 0xFE])
+
+
 # ── Public Encoder Functions ───────────────────────────────────────────────
 
 def encode_url(url: str) -> bytes:

@@ -76,13 +76,14 @@ def show_menu():
         ("5", "Write Social Media Link"),
         ("6", "Write Custom Text"),
         ("7", "Write WiFi Credentials"),
-        ("8", "Erase Tag"),
-        ("9", "Lock Tag"),
-        ("10", "Read Tag"),
-        ("11", "Tag Info"),
-        ("12", "Bulk Write Mode"),
-        ("13", "Write History"),
-        ("14", "Settings"),
+        ("8", "Format Tag (NDEF)"),
+        ("9", "Erase Tag"),
+        ("10", "Lock Tag"),
+        ("11", "Read Tag"),
+        ("12", "Tag Info"),
+        ("13", "Bulk Write Mode"),
+        ("14", "Write History"),
+        ("15", "Settings"),
         ("0", "Exit"),
     ]
 
@@ -363,6 +364,43 @@ def handle_write_wifi(reader: RFIDReader, db: TagDatabase):
 
     ndef_data = encode_wifi(ssid, password=password, auth_type=auth)
     do_write(reader, db, ndef_data, "WiFi", f"SSID: {ssid} ({auth})")
+
+
+def handle_format(reader, db: TagDatabase):
+    """Format a tag with empty NDEF container (no records, just NDEF structure)."""
+    from techtap.ndef_encoder import encode_empty_ndef
+
+    console.print("\n[bold cyan]── Format Tag (NDEF) ──[/bold cyan]\n")
+    console.print(
+        "[white]This writes an empty NDEF container to the tag.[/white]\n"
+        "[dim]The tag will be NDEF-formatted but contain no records (no URL, text, etc).\n"
+        "Unlike Erase, this keeps the tag phone-readable as a blank NDEF tag.\n"
+        "Use this to prepare new tags or clear data while keeping NDEF format.[/dim]\n"
+    )
+
+    if not Confirm.ask("[yellow]Format this tag with empty NDEF? Continue?[/yellow]"):
+        return
+
+    ndef_data = encode_empty_ndef()
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console, transient=True,
+    ) as progress:
+        progress.add_task("Preparing format...", total=None)
+        result = reader.write_ndef(
+            ndef_data, record_type="FORMAT",
+            on_tap_prompt=show_tap_prompt
+        )
+
+    if result.get("success"):
+        uid = result.get("uid", "Unknown")
+        show_success(f"Tag [bold]{uid}[/bold] formatted (empty NDEF).")
+        db.log_write(uid=uid, operation="FORMAT", record_type="FORMAT",
+                     content_summary="Tag formatted (empty NDEF)", success=True)
+    else:
+        show_error(result.get("error", "Format failed"))
 
 
 def handle_erase(reader: RFIDReader, db: TagDatabase):
@@ -846,13 +884,14 @@ def main():
             "5": handle_write_social,
             "6": handle_write_text,
             "7": handle_write_wifi,
-            "8": handle_erase,
-            "9": handle_lock,
-            "10": handle_read,
-            "11": handle_tag_info,
-            "12": handle_bulk_write,
-            "13": handle_history,
-            "14": handle_settings,
+            "8": handle_format,
+            "9": handle_erase,
+            "10": handle_lock,
+            "11": handle_read,
+            "12": handle_tag_info,
+            "13": handle_bulk_write,
+            "14": handle_history,
+            "15": handle_settings,
         }
 
         while True:
@@ -860,7 +899,7 @@ def main():
                 show_menu()
                 choice = Prompt.ask(
                     "[bold white]Select option[/bold white]",
-                    choices=[str(i) for i in range(15)],
+                    choices=[str(i) for i in range(16)],
                     show_choices=False
                 )
 
