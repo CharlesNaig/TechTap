@@ -59,9 +59,21 @@ elif command -v brew &>/dev/null; then
 fi
 info "Package manager: ${PKG_MGR:-none detected}"
 
-# ── Install Python 3 ────────────────────────────────────────────────
-step "Checking Python 3"
+# ═══════════════════════════════════════════════════════════════════
+#  PHASE 1: System packages (Python, pip, venv, git, ADB, unzip)
+# ═══════════════════════════════════════════════════════════════════
 
+step "Checking system dependencies"
+
+# Build a list of what needs to be installed
+NEED_PYTHON=false
+NEED_PIP=false
+NEED_VENV=false
+NEED_GIT=false
+NEED_ADB=false
+NEED_UNZIP=false
+
+# ── Python 3 ─────────────────────────────────────────────────────────
 PYTHON=""
 for cmd in python3 python; do
     if command -v "$cmd" &>/dev/null; then
@@ -74,33 +86,122 @@ for cmd in python3 python; do
         fi
     fi
 done
+[ -z "$PYTHON" ] && NEED_PYTHON=true
 
+# ── pip ──────────────────────────────────────────────────────────────
 if [ -n "$PYTHON" ]; then
-    info "Python found: $($PYTHON --version)"
+    $PYTHON -m pip --version &>/dev/null || NEED_PIP=true
 else
-    warn "Python 3.10+ not found. Installing..."
+    NEED_PIP=true
+fi
+
+# ── venv ─────────────────────────────────────────────────────────────
+if [ -n "$PYTHON" ]; then
+    $PYTHON -m venv --help &>/dev/null 2>&1 || NEED_VENV=true
+else
+    NEED_VENV=true
+fi
+
+# ── git ──────────────────────────────────────────────────────────────
+command -v git &>/dev/null || NEED_GIT=true
+
+# ── unzip (needed for ADB fallback download) ─────────────────────────
+command -v unzip &>/dev/null || NEED_UNZIP=true
+
+# ── ADB ──────────────────────────────────────────────────────────────
+command -v adb &>/dev/null || NEED_ADB=true
+
+# ── Report what's found / missing ────────────────────────────────────
+[ "$NEED_PYTHON" = false ] && info "Python:  $($PYTHON --version)" || warn "Python 3.10+: NOT FOUND"
+[ "$NEED_PIP" = false ]    && info "pip:     found"                 || warn "pip:          NOT FOUND"
+[ "$NEED_VENV" = false ]   && info "venv:    found"                 || warn "venv:         NOT FOUND"
+[ "$NEED_GIT" = false ]    && info "git:     $(git --version)"      || warn "git:          NOT FOUND"
+[ "$NEED_UNZIP" = false ]  && info "unzip:   found"                 || warn "unzip:        NOT FOUND"
+[ "$NEED_ADB" = false ]    && info "ADB:     found"                 || warn "ADB:          NOT FOUND"
+
+# ── Install missing system packages ──────────────────────────────────
+APT_PKGS="" DNF_PKGS="" PAC_PKGS="" ZYP_PKGS="" BREW_PKGS=""
+
+if [ "$NEED_PYTHON" = true ]; then
     case "$PKG_MGR" in
-        apt)
-            sudo apt-get update -qq
-            sudo apt-get install -y python3 python3-pip python3-venv
-            ;;
-        dnf)
-            sudo dnf install -y python3 python3-pip
-            ;;
-        pacman)
-            sudo pacman -Sy --noconfirm python python-pip
-            ;;
-        zypper)
-            sudo zypper install -y python3 python3-pip
-            ;;
-        brew)
-            brew install python@3
-            ;;
-        *)
-            fail "Cannot auto-install Python. Please install Python 3.10+ manually:\n  https://www.python.org/downloads/"
-            ;;
+        apt)    APT_PKGS+=" python3" ;;
+        dnf)    DNF_PKGS+=" python3" ;;
+        pacman) PAC_PKGS+=" python" ;;
+        zypper) ZYP_PKGS+=" python3" ;;
+        brew)   BREW_PKGS+=" python@3" ;;
+        *)      fail "Cannot auto-install Python 3.10+. Install manually:\n  https://www.python.org/downloads/" ;;
     esac
-    # Re-detect
+fi
+
+if [ "$NEED_PIP" = true ]; then
+    case "$PKG_MGR" in
+        apt)    APT_PKGS+=" python3-pip" ;;
+        dnf)    DNF_PKGS+=" python3-pip" ;;
+        pacman) PAC_PKGS+=" python-pip" ;;
+        zypper) ZYP_PKGS+=" python3-pip" ;;
+        brew)   : ;; # included with python
+        *)      : ;; # handled later with get-pip
+    esac
+fi
+
+if [ "$NEED_VENV" = true ]; then
+    case "$PKG_MGR" in
+        apt)    APT_PKGS+=" python3-venv" ;;
+        dnf)    DNF_PKGS+=" python3-libs" ;; # venv ships with python3 on Fedora
+        pacman) : ;; # venv ships with python on Arch
+        zypper) ZYP_PKGS+=" python3-venv" ;;
+        brew)   : ;; # included with python
+        *)      : ;;
+    esac
+fi
+
+if [ "$NEED_GIT" = true ]; then
+    case "$PKG_MGR" in
+        apt)    APT_PKGS+=" git" ;;
+        dnf)    DNF_PKGS+=" git" ;;
+        pacman) PAC_PKGS+=" git" ;;
+        zypper) ZYP_PKGS+=" git" ;;
+        brew)   BREW_PKGS+=" git" ;;
+        *)      fail "Cannot auto-install git. Install manually." ;;
+    esac
+fi
+
+if [ "$NEED_UNZIP" = true ]; then
+    case "$PKG_MGR" in
+        apt)    APT_PKGS+=" unzip" ;;
+        dnf)    DNF_PKGS+=" unzip" ;;
+        pacman) PAC_PKGS+=" unzip" ;;
+        zypper) ZYP_PKGS+=" unzip" ;;
+        brew)   : ;; # macOS has unzip built-in
+        *)      : ;;
+    esac
+fi
+
+# Run a single install command per package manager
+if [ -n "$APT_PKGS" ]; then
+    step "Installing system packages via apt"
+    sudo apt-get update -qq
+    sudo apt-get install -y $APT_PKGS
+fi
+if [ -n "$DNF_PKGS" ]; then
+    step "Installing system packages via dnf"
+    sudo dnf install -y $DNF_PKGS
+fi
+if [ -n "$PAC_PKGS" ]; then
+    step "Installing system packages via pacman"
+    sudo pacman -Sy --noconfirm $PAC_PKGS
+fi
+if [ -n "$ZYP_PKGS" ]; then
+    step "Installing system packages via zypper"
+    sudo zypper install -y $ZYP_PKGS
+fi
+if [ -n "$BREW_PKGS" ]; then
+    step "Installing system packages via brew"
+    brew install $BREW_PKGS
+fi
+
+# Re-detect Python after install
+if [ -z "$PYTHON" ]; then
     for cmd in python3 python; do
         if command -v "$cmd" &>/dev/null; then
             PYTHON="$cmd"
@@ -108,84 +209,48 @@ else
         fi
     done
     [ -z "$PYTHON" ] && fail "Python installation failed."
-    info "Python installed: $($PYTHON --version)"
 fi
+info "Using Python: $($PYTHON --version)"
 
-# ── Install pip ──────────────────────────────────────────────────────
-step "Checking pip"
-
-if $PYTHON -m pip --version &>/dev/null; then
-    info "pip found: $($PYTHON -m pip --version 2>&1 | head -1)"
-else
-    warn "pip not found. Installing..."
-    case "$PKG_MGR" in
-        apt)    sudo apt-get install -y python3-pip ;;
-        dnf)    sudo dnf install -y python3-pip ;;
-        pacman) sudo pacman -Sy --noconfirm python-pip ;;
-        zypper) sudo zypper install -y python3-pip ;;
-        brew)   : ;; # brew python includes pip
-        *)
-            curl -sSL https://bootstrap.pypa.io/get-pip.py | $PYTHON
-            ;;
-    esac
+# Ensure pip (fallback if package manager didn't provide it)
+if ! $PYTHON -m pip --version &>/dev/null 2>&1; then
+    warn "Installing pip via get-pip.py..."
+    curl -sSL https://bootstrap.pypa.io/get-pip.py | $PYTHON
     $PYTHON -m pip --version &>/dev/null || fail "pip installation failed."
-    info "pip installed."
 fi
+info "pip ready"
 
-# ── Install git ──────────────────────────────────────────────────────
-step "Checking git"
-
-if command -v git &>/dev/null; then
-    info "git found: $(git --version)"
-else
-    warn "git not found. Installing..."
-    case "$PKG_MGR" in
-        apt)    sudo apt-get install -y git ;;
-        dnf)    sudo dnf install -y git ;;
-        pacman) sudo pacman -Sy --noconfirm git ;;
-        zypper) sudo zypper install -y git ;;
-        brew)   brew install git ;;
-        *)      fail "Cannot auto-install git. Please install git manually." ;;
-    esac
-    info "git installed."
+# Ensure venv module works
+if ! $PYTHON -m venv --help &>/dev/null 2>&1; then
+    fail "Python venv module not available. Install python3-venv for your distro."
 fi
+info "venv ready"
 
 # ── Install ADB (platform-tools) ────────────────────────────────────
-step "Checking ADB (Android Platform Tools)"
+if [ "$NEED_ADB" = true ]; then
+    step "Installing ADB (Android Platform Tools)"
 
-ADB_OK=false
-if command -v adb &>/dev/null; then
-    ADB_OK=true
-    info "ADB found: $(adb version 2>&1 | head -1)"
-fi
-
-if [ "$ADB_OK" = false ]; then
-    warn "ADB not found. Installing..."
-
+    ADB_OK=false
     case "$PKG_MGR" in
         apt)
-            sudo apt-get install -y adb
-            ADB_OK=true
+            sudo apt-get install -y adb && ADB_OK=true
             ;;
         dnf)
-            sudo dnf install -y android-tools
-            ADB_OK=true
+            sudo dnf install -y android-tools && ADB_OK=true
             ;;
         pacman)
-            sudo pacman -Sy --noconfirm android-tools
-            ADB_OK=true
+            sudo pacman -Sy --noconfirm android-tools && ADB_OK=true
             ;;
         brew)
-            brew install android-platform-tools
-            ADB_OK=true
+            brew install android-platform-tools && ADB_OK=true
             ;;
     esac
 
     # Fallback: download platform-tools directly from Google
     if [ "$ADB_OK" = false ]; then
         warn "Downloading platform-tools from Google..."
-        INSTALL_DIR="$HOME/.local/share/techtap"
-        mkdir -p "$INSTALL_DIR"
+        ADB_DIR="$HOME/.local/share/techtap"
+        mkdir -p "$ADB_DIR"
 
         if [ "$PLATFORM" = "macos" ]; then
             PT_URL="https://dl.google.com/android/repository/platform-tools-latest-darwin.zip"
@@ -194,32 +259,37 @@ if [ "$ADB_OK" = false ]; then
         fi
 
         curl -sSL "$PT_URL" -o /tmp/platform-tools.zip
-        unzip -qo /tmp/platform-tools.zip -d "$INSTALL_DIR"
-        rm /tmp/platform-tools.zip
+        unzip -qo /tmp/platform-tools.zip -d "$ADB_DIR"
+        rm -f /tmp/platform-tools.zip
 
-        # Add to PATH for this session and shell profile
-        export PATH="$INSTALL_DIR/platform-tools:$PATH"
+        export PATH="$ADB_DIR/platform-tools:$PATH"
+
+        # Persist to shell profile
         SHELL_RC=""
-        if [ -f "$HOME/.bashrc" ]; then SHELL_RC="$HOME/.bashrc"
-        elif [ -f "$HOME/.zshrc" ]; then SHELL_RC="$HOME/.zshrc"
-        fi
+        [ -f "$HOME/.bashrc" ] && SHELL_RC="$HOME/.bashrc"
+        [ -f "$HOME/.zshrc" ]  && SHELL_RC="$HOME/.zshrc"
         if [ -n "$SHELL_RC" ]; then
-            LINE="export PATH=\"$INSTALL_DIR/platform-tools:\$PATH\"  # TechTap ADB"
+            LINE="export PATH=\"$ADB_DIR/platform-tools:\$PATH\"  # TechTap ADB"
             grep -qF "TechTap ADB" "$SHELL_RC" 2>/dev/null || echo "$LINE" >> "$SHELL_RC"
             info "Added ADB to $SHELL_RC"
         fi
         ADB_OK=true
     fi
 
-    if [ "$ADB_OK" = true ]; then
+    if [ "$ADB_OK" = true ] && command -v adb &>/dev/null; then
         info "ADB installed: $(adb version 2>&1 | head -1)"
     else
-        warn "Could not install ADB automatically. Install manually:"
+        warn "Could not install ADB. Install manually:"
         warn "  https://developer.android.com/tools/releases/platform-tools"
     fi
+else
+    info "ADB: $(adb version 2>&1 | head -1)"
 fi
 
-# ── Clone TechTap ────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════
+#  PHASE 2: Clone repository
+# ═══════════════════════════════════════════════════════════════════
+
 step "Setting up TechTap"
 
 INSTALL_TO="$HOME/TechTap"
@@ -234,14 +304,43 @@ else
     cd "$INSTALL_TO"
 fi
 
-# ── Install Python dependencies ──────────────────────────────────────
-step "Installing Python dependencies"
+# ═══════════════════════════════════════════════════════════════════
+#  PHASE 3: Create & activate virtual environment, install packages
+# ═══════════════════════════════════════════════════════════════════
 
-$PYTHON -m pip install --upgrade pip --quiet 2>/dev/null || true
-$PYTHON -m pip install -r requirements.txt --quiet
-info "All Python packages installed."
+VENV_DIR="$INSTALL_TO/.venv"
 
-# ── Done ─────────────────────────────────────────────────────────────
+step "Setting up Python virtual environment"
+
+if [ -d "$VENV_DIR" ] && [ -f "$VENV_DIR/bin/activate" ]; then
+    info "Virtual environment already exists at .venv/"
+else
+    info "Creating virtual environment..."
+    $PYTHON -m venv "$VENV_DIR"
+    info "Virtual environment created at .venv/"
+fi
+
+# Activate venv
+# shellcheck disable=SC1091
+source "$VENV_DIR/bin/activate"
+info "Activated venv ($(python --version), $(which python))"
+
+# Upgrade pip inside venv
+step "Installing Python packages in venv"
+python -m pip install --upgrade pip --quiet 2>/dev/null || true
+python -m pip install -r requirements.txt --quiet
+info "All Python packages installed in .venv/"
+
+# Show installed packages summary
+echo ""
+python -m pip list --format=columns 2>/dev/null | head -20
+TOTAL=$(python -m pip list 2>/dev/null | tail -n +3 | wc -l)
+info "$TOTAL packages installed in virtual environment"
+
+# ═══════════════════════════════════════════════════════════════════
+#  PHASE 4: Done
+# ═══════════════════════════════════════════════════════════════════
+
 step "Setup complete!"
 
 echo ""
@@ -250,7 +349,7 @@ echo -e "${GREEN}  TechTap is ready!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 echo "  To start TechTap:"
-echo -e "    ${CYAN}cd $INSTALL_TO && $PYTHON -m techtap${NC}"
+echo -e "    ${CYAN}cd $INSTALL_TO && source .venv/bin/activate && python -m techtap${NC}"
 echo ""
 echo "  For Phone NFC mode, make sure to:"
 echo "    1. Enable USB Debugging on your phone"
@@ -261,6 +360,6 @@ echo ""
 # Ask if user wants to launch now
 read -rp "Launch TechTap now? [Y/n] " LAUNCH
 case "$LAUNCH" in
-    [nN]*) echo "Run later: cd $INSTALL_TO && $PYTHON -m techtap" ;;
-    *)     $PYTHON -m techtap ;;
+    [nN]*) echo "Run later: cd $INSTALL_TO && source .venv/bin/activate && python -m techtap" ;;
+    *)     python -m techtap ;;
 esac
