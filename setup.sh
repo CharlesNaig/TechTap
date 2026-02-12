@@ -66,8 +66,9 @@ info "Package manager: ${PKG_MGR:-none detected}"
 step "Checking system dependencies"
 
 # Build a list of what needs to be installed
+# NOTE: We do NOT check/install pip system-wide (PEP 668 blocks it on
+#       modern Debian/Ubuntu). The venv ships its own pip.
 NEED_PYTHON=false
-NEED_PIP=false
 NEED_VENV=false
 NEED_GIT=false
 NEED_ADB=false
@@ -88,13 +89,6 @@ for cmd in python3 python; do
 done
 [ -z "$PYTHON" ] && NEED_PYTHON=true
 
-# ── pip ──────────────────────────────────────────────────────────────
-if [ -n "$PYTHON" ]; then
-    $PYTHON -m pip --version &>/dev/null || NEED_PIP=true
-else
-    NEED_PIP=true
-fi
-
 # ── venv ─────────────────────────────────────────────────────────────
 if [ -n "$PYTHON" ]; then
     $PYTHON -m venv --help &>/dev/null 2>&1 || NEED_VENV=true
@@ -113,18 +107,18 @@ command -v adb &>/dev/null || NEED_ADB=true
 
 # ── Report what's found / missing ────────────────────────────────────
 [ "$NEED_PYTHON" = false ] && info "Python:  $($PYTHON --version)" || warn "Python 3.10+: NOT FOUND"
-[ "$NEED_PIP" = false ]    && info "pip:     found"                 || warn "pip:          NOT FOUND"
 [ "$NEED_VENV" = false ]   && info "venv:    found"                 || warn "venv:         NOT FOUND"
 [ "$NEED_GIT" = false ]    && info "git:     $(git --version)"      || warn "git:          NOT FOUND"
 [ "$NEED_UNZIP" = false ]  && info "unzip:   found"                 || warn "unzip:        NOT FOUND"
 [ "$NEED_ADB" = false ]    && info "ADB:     found"                 || warn "ADB:          NOT FOUND"
+info "pip:     will use venv's built-in pip (PEP 668 safe)"
 
 # ── Install missing system packages ──────────────────────────────────
 APT_PKGS="" DNF_PKGS="" PAC_PKGS="" ZYP_PKGS="" BREW_PKGS=""
 
 if [ "$NEED_PYTHON" = true ]; then
     case "$PKG_MGR" in
-        apt)    APT_PKGS+=" python3" ;;
+        apt)    APT_PKGS+=" python3-full" ;; # python3-full includes venv + pip
         dnf)    DNF_PKGS+=" python3" ;;
         pacman) PAC_PKGS+=" python" ;;
         zypper) ZYP_PKGS+=" python3" ;;
@@ -133,16 +127,8 @@ if [ "$NEED_PYTHON" = true ]; then
     esac
 fi
 
-if [ "$NEED_PIP" = true ]; then
-    case "$PKG_MGR" in
-        apt)    APT_PKGS+=" python3-pip" ;;
-        dnf)    DNF_PKGS+=" python3-pip" ;;
-        pacman) PAC_PKGS+=" python-pip" ;;
-        zypper) ZYP_PKGS+=" python3-pip" ;;
-        brew)   : ;; # included with python
-        *)      : ;; # handled later with get-pip
-    esac
-fi
+# pip is NOT installed system-wide — the venv provides its own pip.
+# On Debian 12+ / Ubuntu 23.04+, system pip is blocked by PEP 668.
 
 if [ "$NEED_VENV" = true ]; then
     case "$PKG_MGR" in
@@ -212,19 +198,11 @@ if [ -z "$PYTHON" ]; then
 fi
 info "Using Python: $($PYTHON --version)"
 
-# Ensure pip (fallback if package manager didn't provide it)
-if ! $PYTHON -m pip --version &>/dev/null 2>&1; then
-    warn "Installing pip via get-pip.py..."
-    curl -sSL https://bootstrap.pypa.io/get-pip.py | $PYTHON
-    $PYTHON -m pip --version &>/dev/null || fail "pip installation failed."
-fi
-info "pip ready"
-
-# Ensure venv module works
+# Ensure venv module works (pip comes from venv, not system)
 if ! $PYTHON -m venv --help &>/dev/null 2>&1; then
     fail "Python venv module not available. Install python3-venv for your distro."
 fi
-info "venv ready"
+info "venv module ready"
 
 # ── Install ADB (platform-tools) ────────────────────────────────────
 if [ "$NEED_ADB" = true ]; then
