@@ -44,7 +44,25 @@ TechTap is a lightweight **CLI clone of NFC Tools** that communicates with an Ar
 | **Auto Port Detection** | Finds your Arduino automatically |
 | **📱 Phone NFC Mode** | Use your Android phone as the NFC reader via USB |
 
-## Quick Start — Two Reader Options
+## Quick Start — One-Command Install
+
+Get TechTap running with a single command. Installs Python, ADB, git, all dependencies, and launches TechTap.
+
+**Linux / macOS:**
+```bash
+curl -sSL https://raw.githubusercontent.com/CharlesNaig/TechTap/main/setup.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/CharlesNaig/TechTap/main/setup.ps1 | iex
+```
+
+> The scripts will auto-install Python 3, pip, git, and ADB platform-tools if missing, then clone the repo and install all Python dependencies.
+
+---
+
+## Manual Setup — Two Reader Options
 
 ### Option A: Phone NFC Mode (No Arduino Needed!)
 
@@ -110,6 +128,8 @@ Use your Android phone's built-in NFC chip instead of Arduino + PN532/RC522.
 ### Option B: Arduino Mode (Original)
 
 #### 1. Hardware Requirements
+
+| Component | Recommended | Notes |
 |-----------|------------|-------|
 | **NFC Module** | PN532 | Best phone compatibility |
 | **Arduino** | Uno / Nano / Mega | Any with USB serial |
@@ -251,15 +271,19 @@ TechTap/
 │   ├── __main__.py          # python -m techtap entry
 │   ├── cli.py               # Interactive CLI application
 │   ├── rfid_reader.py       # Serial communication handler
+│   ├── phone_nfc.py         # Phone NFC bridge (WebSocket + ADB)
 │   ├── ndef_encoder.py      # NDEF binary encoder
 │   ├── database.py          # SQLite tag logging
 │   ├── utils.py             # Helpers, config, validation
+│   ├── static/
+│   │   └── phone_nfc.html   # Phone NFC web UI (Chrome)
 │   └── arduino/
 │       └── techtap_reader.ino  # Arduino firmware
+├── setup.sh                 # One-command setup (Linux/macOS)
+├── setup.ps1                # One-command setup (Windows)
 ├── config.json              # User configuration
 ├── pyproject.toml           # Python packaging
 ├── requirements.txt         # Dependencies
-├── plan.prompt.md           # Original project plan
 └── README.md                # This file
 ```
 
