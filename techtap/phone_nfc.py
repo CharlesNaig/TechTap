@@ -21,6 +21,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import time
 import http.server
@@ -53,17 +54,32 @@ def check_adb_available() -> bool:
     if shutil.which("adb"):
         return True
 
+    is_windows = sys.platform == "win32"
+    adb_name = "adb.exe" if is_windows else "adb"
+
     # Common install paths (including project-local platform-tools)
-    common_paths = [
-        str(PROJECT_ROOT / "platform-tools"),
-        os.path.expanduser(r"~\AppData\Local\Android\Sdk\platform-tools"),
-        r"C:\platform-tools",
-        r"C:\Android\platform-tools",
-        os.path.expanduser(r"~\scoop\apps\adb\current"),
-    ]
+    common_paths = [str(PROJECT_ROOT / "platform-tools")]
+
+    if is_windows:
+        common_paths += [
+            os.path.expanduser(r"~\AppData\Local\Android\Sdk\platform-tools"),
+            r"C:\platform-tools",
+            r"C:\Android\platform-tools",
+            os.path.expanduser(r"~\scoop\apps\adb\current"),
+        ]
+    else:
+        common_paths += [
+            os.path.expanduser("~/Android/Sdk/platform-tools"),
+            os.path.expanduser("~/android-sdk/platform-tools"),
+            "/usr/lib/android-sdk/platform-tools",
+            "/opt/android-sdk/platform-tools",
+            "/usr/local/bin",
+            "/snap/bin",
+        ]
+
     for p in common_paths:
-        adb_exe = os.path.join(p, "adb.exe")
-        if os.path.exists(adb_exe):
+        adb_path = os.path.join(p, adb_name)
+        if os.path.exists(adb_path):
             os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
             logger.info(f"Found ADB at {p}")
             return True
