@@ -62,6 +62,7 @@ DEFAULT_CONFIG = {
         "timeout": 5,
         "write_timeout": 5
     },
+    "reader_mode": "arduino",
     "module": "PN532",
     "bulk_mode": False,
     "log_writes": True,

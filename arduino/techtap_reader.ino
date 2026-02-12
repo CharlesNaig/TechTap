@@ -1,6 +1,8 @@
 /*
  * ══════════════════════════════════════════════════════════════
  *  TechTap — Arduino NFC Writer Firmware
+ *  Memory-optimized for Arduino Uno (2KB SRAM)
+ *
  *  For PN532 NFC Module (I2C) + NTAG213/215/216 cards
  *
  *  Protocol (Serial @ 115200 baud):
@@ -9,14 +11,19 @@
  *
  *  Supported commands:
  *    PING           → PONG
- *    WRITE_RAW|HEX  → TAP_CARD → WRITE_OK|UID  or  WRITE_FAIL|reason
+ *    WRITE_RAW|HEX  → TAP_CARD → VERIFY_OK|UID  or  WRITE_FAIL|reason
  *    ERASE          → TAP_CARD → ERASE_OK|UID
  *    READ           → TAP_CARD → DATA|HEX
  *    LOCK           → TAP_CARD → LOCK_OK|UID
  *    INFO           → TAP_CARD → TAG_INFO|uid:XX,type:NTAG215,size:504,locked:0
  *
+ *  RAM strategy:
+ *    - Single cmdBuffer (no separate data/read buffers)
+ *    - Hex parsed inline during page writes (4 bytes at a time)
+ *    - Reads streamed directly to Serial (no buffering)
+ *    - UID stored as char[] instead of String
+ *
  *  Hardware:  PN532 via I2C (SDA=A4, SCL=A5 on Uno)
- *             or SPI (SS=10, SCK=13, MOSI=11, MISO=12)
  * ══════════════════════════════════════════════════════════════
  */
 
@@ -24,8 +31,6 @@
 #include <Adafruit_PN532.h>
 
 // ── Pin Configuration (I2C) ───────────────────────────────────
-// For I2C: connect SDA→A4, SCL→A5 (Uno/Nano) or SDA→20, SCL→21 (Mega)
-// IRQ and RST pins (optional, use -1 if not connected)
 #define PN532_IRQ   2
 #define PN532_RST   3
 
@@ -36,26 +41,27 @@ Adafruit_PN532 nfc(PN532_IRQ, PN532_RST);  // I2C mode
 // Adafruit_PN532 nfc(PN532_SS);  // Hardware SPI
 
 // ── Constants ─────────────────────────────────────────────────
-#define SERIAL_BAUD    115200
-#define MAX_DATA_SIZE  888       // NTAG216 max user bytes
-#define CMD_TIMEOUT    30000     // 30s wait for card tap
-#define READ_TIMEOUT   5000     // 5s read timeout
+#define SERIAL_BAUD     115200
+#define CMD_TIMEOUT     30000    // 30s wait for card tap
+#define NTAG_USER_START 4        // User memory starts at page 4
 
-// NTAG page size = 4 bytes, user memory starts at page 4
-#define NTAG_PAGE_SIZE      4
-#define NTAG_USER_START     4
+// cmdBuffer: 350 bytes supports NTAG213 fully (144 bytes = 288 hex chars)
+// and most practical NTAG215 payloads (URLs, vCards < 165 bytes).
+// For full NTAG215/216, use Arduino Mega with a larger buffer.
+#define CMD_BUF_SIZE    350
 
-// NTAG type detection by capacity config pages
-#define NTAG213_PAGES  45    // User: page 4-39  = 144 bytes
-#define NTAG215_PAGES  135   // User: page 4-129 = 504 bytes
-#define NTAG216_PAGES  231   // User: page 4-225 = 888 bytes
+// ── Tag Info Struct (must precede auto-generated prototypes) ──
+struct TagInfo {
+    char type[8];           // "NTAG213" / "NTAG215" / "NTAG216"
+    uint16_t userBytes;
+    uint16_t lastUserPage;
+};
 
-// ── Globals ───────────────────────────────────────────────────
-char cmdBuffer[2048];
-uint8_t dataBuffer[MAX_DATA_SIZE + 16];
-uint16_t dataLen = 0;
+// ── Globals (~370 bytes total → leaves ~1680 for stack) ──────
+char cmdBuffer[CMD_BUF_SIZE];
 uint8_t uid[7];
 uint8_t uidLen;
+char uidStr[15];            // Pre-allocated UID hex string
 
 // ── Setup ─────────────────────────────────────────────────────
 void setup() {
@@ -70,9 +76,8 @@ void setup() {
         while (1) delay(100);
     }
 
-    // Configure for NTAG reading/writing
     nfc.SAMConfig();
-    nfc.setPassiveActivationRetries(0xFF);  // Retry indefinitely
+    nfc.setPassiveActivationRetries(0xFF);
 
     Serial.println(F("READY|TechTap Firmware v1.0"));
 }
@@ -80,10 +85,9 @@ void setup() {
 // ── Main Loop ─────────────────────────────────────────────────
 void loop() {
     if (Serial.available()) {
-        int len = Serial.readBytesUntil('\n', cmdBuffer, sizeof(cmdBuffer) - 1);
+        int len = Serial.readBytesUntil('\n', cmdBuffer, CMD_BUF_SIZE - 1);
         cmdBuffer[len] = '\0';
 
-        // Trim CR/LF
         while (len > 0 && (cmdBuffer[len - 1] == '\r' || cmdBuffer[len - 1] == '\n')) {
             cmdBuffer[--len] = '\0';
         }
@@ -94,7 +98,6 @@ void loop() {
 
 // ── Command Router ────────────────────────────────────────────
 void processCommand(char* cmd) {
-    // Split command and data at '|'
     char* data = strchr(cmd, '|');
     if (data) {
         *data = '\0';
@@ -125,51 +128,53 @@ void processCommand(char* cmd) {
     }
 }
 
-// ── Hex String ↔ Bytes ────────────────────────────────────────
-uint16_t hexToBytes(const char* hex, uint8_t* out, uint16_t maxLen) {
-    uint16_t len = 0;
-    while (*hex && *(hex + 1) && len < maxLen) {
-        uint8_t hi = hexCharToNibble(*hex++);
-        uint8_t lo = hexCharToNibble(*hex++);
-        if (hi > 0x0F || lo > 0x0F) break;
-        out[len++] = (hi << 4) | lo;
-    }
-    return len;
-}
-
-uint8_t hexCharToNibble(char c) {
+// ── Hex Helpers (no large buffers) ────────────────────────────
+uint8_t hexNibble(char c) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'A' && c <= 'F') return c - 'A' + 10;
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
     return 0xFF;
 }
 
-void bytesToHex(const uint8_t* data, uint16_t len, char* out) {
-    const char hex[] = "0123456789ABCDEF";
-    for (uint16_t i = 0; i < len; i++) {
-        out[i * 2]     = hex[(data[i] >> 4) & 0x0F];
-        out[i * 2 + 1] = hex[data[i] & 0x0F];
+void buildUidString() {
+    static const char hexChars[] = "0123456789ABCDEF";
+    for (uint8_t i = 0; i < uidLen; i++) {
+        uidStr[i * 2]     = hexChars[uid[i] >> 4];
+        uidStr[i * 2 + 1] = hexChars[uid[i] & 0x0F];
     }
-    out[len * 2] = '\0';
+    uidStr[uidLen * 2] = '\0';
 }
 
-String uidToString() {
-    String s = "";
-    for (uint8_t i = 0; i < uidLen; i++) {
-        if (uid[i] < 0x10) s += "0";
-        s += String(uid[i], HEX);
+// Print a single byte as 2 hex chars to Serial
+void printHexByte(uint8_t b) {
+    if (b < 0x10) Serial.print('0');
+    Serial.print(b, HEX);
+}
+
+// Decode one page (4 bytes) from hex string at *ptr, advance ptr.
+// Pads with 0 if fewer than 4 bytes remain.
+// Returns number of data bytes decoded (1-4), or 0 on error.
+uint8_t decodePageFromHex(const char* &ptr, uint8_t* page, uint16_t bytesLeft) {
+    uint8_t count = (bytesLeft < 4) ? bytesLeft : 4;
+    page[0] = page[1] = page[2] = page[3] = 0;
+    for (uint8_t i = 0; i < count; i++) {
+        if (!ptr[0] || !ptr[1]) return 0;
+        uint8_t hi = hexNibble(*ptr++);
+        uint8_t lo = hexNibble(*ptr++);
+        if (hi > 0x0F || lo > 0x0F) return 0;
+        page[i] = (hi << 4) | lo;
     }
-    s.toUpperCase();
-    return s;
+    return count;
 }
 
 // ── Wait for Card ─────────────────────────────────────────────
-bool waitForCard(unsigned long timeout = CMD_TIMEOUT) {
+bool waitForCard() {
     Serial.println(F("TAP_CARD"));
 
     unsigned long start = millis();
-    while (millis() - start < timeout) {
+    while (millis() - start < CMD_TIMEOUT) {
         if (nfc.readPassiveTargetID(PN532_MIFARE_ISO14443A, uid, &uidLen, 1000)) {
+            buildUidString();
             return true;
         }
     }
@@ -179,34 +184,26 @@ bool waitForCard(unsigned long timeout = CMD_TIMEOUT) {
 }
 
 // ── Detect NTAG Type ──────────────────────────────────────────
-struct TagInfo {
-    String type;
-    uint16_t userBytes;
-    uint16_t lastUserPage;
-};
-
 TagInfo detectTagType() {
     TagInfo info;
-    info.type = "UNKNOWN";
+    strcpy(info.type, "UNKNOWN");
     info.userBytes = 0;
     info.lastUserPage = 0;
 
-    // Read Capability Container (page 3)
     uint8_t page3[4];
     if (nfc.ntag2xx_ReadPage(3, page3)) {
-        // CC byte 2 = total size / 8
-        uint16_t totalSize = page3[2] * 8;
+        uint16_t totalSize = (uint16_t)page3[2] * 8;
 
-        if (totalSize <= 144 + 48) {
-            info.type = "NTAG213";
+        if (totalSize <= 192) {          // 144 + 48
+            strcpy(info.type, "NTAG213");
             info.userBytes = 144;
             info.lastUserPage = 39;
-        } else if (totalSize <= 504 + 48) {
-            info.type = "NTAG215";
+        } else if (totalSize <= 552) {   // 504 + 48
+            strcpy(info.type, "NTAG215");
             info.userBytes = 504;
             info.lastUserPage = 129;
         } else {
-            info.type = "NTAG216";
+            strcpy(info.type, "NTAG216");
             info.userBytes = 888;
             info.lastUserPage = 225;
         }
@@ -217,62 +214,53 @@ TagInfo detectTagType() {
 
 // ── Check Lock Status ─────────────────────────────────────────
 bool isTagLocked() {
-    // Read lock bytes (pages 2)
     uint8_t page2[4];
     if (nfc.ntag2xx_ReadPage(2, page2)) {
-        // Static lock bytes are byte 2 and 3 of page 2
         return (page2[2] != 0x00 || page2[3] != 0x00);
     }
-    return false;  // Assume unlocked if can't read
+    return false;
 }
 
-// ── WRITE RAW NDEF ────────────────────────────────────────────
+// ── WRITE RAW NDEF (zero-copy: hex parsed inline) ─────────────
 void handleWriteRaw(const char* hexData) {
-    if (!hexData || strlen(hexData) < 2) {
+    if (!hexData || !hexData[0] || !hexData[1]) {
         Serial.println(F("ERROR|No data provided"));
         return;
     }
 
-    // Decode hex to bytes
-    dataLen = hexToBytes(hexData, dataBuffer, MAX_DATA_SIZE);
-    if (dataLen == 0) {
-        Serial.println(F("ERROR|Invalid hex data"));
+    uint16_t hexLen = strlen(hexData);
+    if (hexLen & 1) {
+        Serial.println(F("ERROR|Odd hex length"));
         return;
     }
+    uint16_t dataLen = hexLen / 2;
 
-    // Wait for card
     if (!waitForCard()) return;
 
-    // Detect tag type and check capacity
     TagInfo tag = detectTagType();
     if (dataLen > tag.userBytes) {
         Serial.print(F("ERROR|Data too large: "));
         Serial.print(dataLen);
-        Serial.print(F(" bytes > "));
-        Serial.print(tag.userBytes);
-        Serial.println(F(" capacity"));
+        Serial.print(F(" > "));
+        Serial.println(tag.userBytes);
         return;
     }
 
-    // Check if already has data (duplicate detection)
+    // ── Duplicate detection ──
     uint8_t firstPage[4];
     if (nfc.ntag2xx_ReadPage(NTAG_USER_START, firstPage)) {
         if (firstPage[0] == 0x03 && firstPage[1] != 0x00) {
-            // Has NDEF TLV data already
             Serial.print(F("DUPLICATE|"));
-            Serial.println(uidToString());
-            // Continue anyway — Python side decides whether to proceed
+            Serial.println(uidStr);
 
-            // Wait for OVERWRITE confirmation or next command
-            unsigned long waitStart = millis();
-            while (millis() - waitStart < 10000) {
+            unsigned long ws = millis();
+            while (millis() - ws < 10000) {
                 if (Serial.available()) {
-                    char confirm[32];
+                    char confirm[20];
                     int cLen = Serial.readBytesUntil('\n', confirm, sizeof(confirm) - 1);
                     confirm[cLen] = '\0';
-                    if (strcmp(confirm, "CONFIRM_OVERWRITE") == 0) {
-                        break;
-                    } else if (strcmp(confirm, "CANCEL") == 0) {
+                    if (strcmp(confirm, "CONFIRM_OVERWRITE") == 0) break;
+                    if (strcmp(confirm, "CANCEL") == 0) {
                         Serial.println(F("ERROR|Write cancelled"));
                         return;
                     }
@@ -281,74 +269,60 @@ void handleWriteRaw(const char* hexData) {
         }
     }
 
-    // ── Write NDEF data page by page ──
+    // ── Write pages directly from hex string ──
     Serial.println(F("READY_TO_WRITE"));
 
-    uint16_t offset = 0;
+    const char* ptr = hexData;
     uint8_t pageNum = NTAG_USER_START;
-    bool writeSuccess = true;
+    uint16_t bytesWritten = 0;
 
-    while (offset < dataLen) {
-        uint8_t pageData[4] = {0, 0, 0, 0};
-        uint16_t remaining = dataLen - offset;
-        uint16_t toCopy = (remaining < 4) ? remaining : 4;
+    while (bytesWritten < dataLen) {
+        uint8_t page[4];
+        uint8_t decoded = decodePageFromHex(ptr, page, dataLen - bytesWritten);
+        if (decoded == 0) {
+            Serial.println(F("WRITE_FAIL|Bad hex data"));
+            return;
+        }
 
-        memcpy(pageData, dataBuffer + offset, toCopy);
-
-        if (!nfc.ntag2xx_WritePage(pageNum, pageData)) {
+        if (!nfc.ntag2xx_WritePage(pageNum, page)) {
             Serial.print(F("WRITE_FAIL|Page "));
-            Serial.print(pageNum);
-            Serial.println(F(" write failed"));
-            writeSuccess = false;
-            break;
+            Serial.println(pageNum);
+            return;
         }
 
         pageNum++;
-        offset += 4;
+        bytesWritten += 4;
     }
 
-    if (!writeSuccess) return;
-
-    // Pad remaining with zeros (clean termination)
-    uint8_t zeroPage[4] = {0, 0, 0, 0};
-    if (offset == dataLen && pageNum <= tag.lastUserPage) {
-        // Write one more zero page after data for clean end
-        nfc.ntag2xx_WritePage(pageNum, zeroPage);
+    // Clean terminator page
+    if (pageNum <= tag.lastUserPage) {
+        uint8_t z[4] = {0, 0, 0, 0};
+        nfc.ntag2xx_WritePage(pageNum, z);
     }
 
     Serial.println(F("WRITE_COMPLETE"));
 
-    // ── Verify ──
-    bool verified = true;
-    offset = 0;
+    // ── Verify: re-parse hex from cmdBuffer and compare ──
+    ptr = hexData;  // Reset — hexData still points into cmdBuffer
     pageNum = NTAG_USER_START;
+    bytesWritten = 0;
+    bool verified = true;
 
-    while (offset < dataLen) {
+    while (bytesWritten < dataLen) {
+        uint8_t expected[4];
+        uint8_t decoded = decodePageFromHex(ptr, expected, dataLen - bytesWritten);
+        if (decoded == 0) { verified = false; break; }
+
         uint8_t readBack[4];
-        if (!nfc.ntag2xx_ReadPage(pageNum, readBack)) {
-            verified = false;
-            break;
-        }
-
-        uint16_t remaining = dataLen - offset;
-        uint16_t toCheck = (remaining < 4) ? remaining : 4;
-
-        if (memcmp(readBack, dataBuffer + offset, toCheck) != 0) {
-            verified = false;
-            break;
-        }
+        if (!nfc.ntag2xx_ReadPage(pageNum, readBack)) { verified = false; break; }
+        if (memcmp(expected, readBack, decoded) != 0)  { verified = false; break; }
 
         pageNum++;
-        offset += 4;
+        bytesWritten += 4;
     }
 
-    if (verified) {
-        Serial.print(F("VERIFY_OK|"));
-        Serial.println(uidToString());
-    } else {
-        Serial.print(F("WRITE_OK|"));
-        Serial.println(uidToString());
-    }
+    Serial.print(verified ? F("VERIFY_OK|") : F("WRITE_OK|"));
+    Serial.println(uidStr);
 }
 
 // ── ERASE TAG ─────────────────────────────────────────────────
@@ -356,80 +330,70 @@ void handleErase() {
     if (!waitForCard()) return;
 
     TagInfo tag = detectTagType();
-    uint8_t zeroPage[4] = {0, 0, 0, 0};
-    bool success = true;
+    uint8_t z[4] = {0, 0, 0, 0};
 
-    // Write zeros to all user pages
     for (uint16_t page = NTAG_USER_START; page <= tag.lastUserPage; page++) {
-        if (!nfc.ntag2xx_WritePage(page, zeroPage)) {
-            // Some pages might be locked, skip and continue
-            continue;
-        }
+        nfc.ntag2xx_WritePage(page, z);  // Skip failures (locked pages)
     }
 
     Serial.print(F("ERASE_OK|"));
-    Serial.println(uidToString());
+    Serial.println(uidStr);
 }
 
-// ── READ TAG ──────────────────────────────────────────────────
+// ── READ TAG (streamed — no buffer) ───────────────────────────
 void handleRead() {
     if (!waitForCard()) return;
 
     TagInfo tag = detectTagType();
 
-    // Read all user pages
-    uint8_t readBuffer[MAX_DATA_SIZE];
-    uint16_t totalRead = 0;
-    uint16_t ndefLen = 0;
-    bool foundNdef = false;
-
-    for (uint16_t page = NTAG_USER_START; page <= tag.lastUserPage && totalRead < MAX_DATA_SIZE; page++) {
-        uint8_t pageData[4];
-        if (!nfc.ntag2xx_ReadPage(page, pageData)) {
-            break;
-        }
-
-        memcpy(readBuffer + totalRead, pageData, 4);
-        totalRead += 4;
-
-        // Detect NDEF message length to know when to stop
-        if (!foundNdef && totalRead >= 2) {
-            if (readBuffer[0] == 0x03) {  // NDEF TLV
-                if (readBuffer[1] == 0xFF && totalRead >= 4) {
-                    ndefLen = (readBuffer[2] << 8) | readBuffer[3];
-                    ndefLen += 5;  // TLV header + terminator
-                    foundNdef = true;
-                } else if (readBuffer[1] != 0xFF) {
-                    ndefLen = readBuffer[1] + 3;  // TLV header + terminator
-                    foundNdef = true;
-                }
-            } else if (readBuffer[0] == 0x00) {
-                // Empty tag
-                Serial.println(F("DATA|EMPTY"));
-                return;
-            }
-        }
-
-        // Stop if we've read enough
-        if (foundNdef && totalRead >= ndefLen) {
-            break;
-        }
-    }
-
-    if (totalRead == 0) {
+    // Read first 2 pages (8 bytes) to parse TLV header
+    uint8_t hdr[8];
+    if (!nfc.ntag2xx_ReadPage(NTAG_USER_START, hdr) ||
+        !nfc.ntag2xx_ReadPage(NTAG_USER_START + 1, hdr + 4)) {
         Serial.println(F("ERROR|Could not read tag"));
         return;
     }
 
-    // Trim to actual NDEF length
-    uint16_t outputLen = foundNdef ? min(totalRead, ndefLen) : totalRead;
-
-    // Send as hex
-    Serial.print(F("DATA|"));
-    for (uint16_t i = 0; i < outputLen; i++) {
-        if (readBuffer[i] < 0x10) Serial.print('0');
-        Serial.print(readBuffer[i], HEX);
+    if (hdr[0] == 0x00) {
+        Serial.println(F("DATA|EMPTY"));
+        return;
     }
+
+    // Determine total NDEF bytes to output
+    uint16_t ndefLen;
+    if (hdr[0] == 0x03) {
+        if (hdr[1] == 0xFF) {
+            ndefLen = ((uint16_t)hdr[2] << 8) | hdr[3];
+            ndefLen += 5;  // 3-byte TLV header + len(2) + terminator
+        } else {
+            ndefLen = hdr[1] + 3;  // 1-byte TLV header + len(1) + terminator
+        }
+    } else {
+        ndefLen = tag.userBytes;  // Not standard NDEF — dump everything
+    }
+
+    // ── Stream hex output page by page ──
+    Serial.print(F("DATA|"));
+
+    uint16_t bytesOut = 0;
+
+    // Output the 8 header bytes we already have
+    for (uint8_t i = 0; i < 8 && bytesOut < ndefLen; i++, bytesOut++) {
+        printHexByte(hdr[i]);
+    }
+
+    // Continue from page 6 onward
+    uint16_t page = NTAG_USER_START + 2;
+    while (bytesOut < ndefLen && page <= tag.lastUserPage) {
+        uint8_t pg[4];
+        if (!nfc.ntag2xx_ReadPage(page, pg)) break;
+
+        for (uint8_t i = 0; i < 4 && bytesOut < ndefLen; i++, bytesOut++) {
+            printHexByte(pg[i]);
+        }
+        page++;
+    }
+
     Serial.println();
 }
 
@@ -437,30 +401,22 @@ void handleRead() {
 void handleLock() {
     if (!waitForCard()) return;
 
-    // NTAG static lock bits are on page 2, bytes 2-3
-    // Dynamic lock bits on page after user memory
-    // Setting lock bytes makes the tag READ-ONLY permanently
-
     uint8_t page2[4];
     if (!nfc.ntag2xx_ReadPage(2, page2)) {
         Serial.println(F("ERROR|Cannot read lock page"));
         return;
     }
 
-    // Set static lock bits (lock pages 3+)
-    page2[2] = 0xFF;  // Lock pages 4-9
-    page2[3] = 0xFF;  // Lock pages 10-15
+    page2[2] = 0xFF;
+    page2[3] = 0xFF;
 
     if (nfc.ntag2xx_WritePage(2, page2)) {
-        // Also set dynamic lock bits
         TagInfo tag = detectTagType();
-        uint16_t dynLockPage = tag.lastUserPage + 1;
-
         uint8_t dynLock[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-        nfc.ntag2xx_WritePage(dynLockPage, dynLock);
+        nfc.ntag2xx_WritePage(tag.lastUserPage + 1, dynLock);
 
         Serial.print(F("LOCK_OK|"));
-        Serial.println(uidToString());
+        Serial.println(uidStr);
     } else {
         Serial.println(F("ERROR|Lock failed"));
     }
@@ -474,11 +430,11 @@ void handleInfo() {
     bool locked = isTagLocked();
 
     Serial.print(F("TAG_INFO|uid:"));
-    Serial.print(uidToString());
+    Serial.print(uidStr);
     Serial.print(F(",type:"));
     Serial.print(tag.type);
     Serial.print(F(",size:"));
     Serial.print(tag.userBytes);
     Serial.print(F(",locked:"));
-    Serial.println(locked ? "1" : "0");
+    Serial.println(locked ? '1' : '0');
 }

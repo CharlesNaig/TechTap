@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>TechTap — Phone NFC Bridge</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #14141f;
+            --accent: #00d4ff;
+            --accent2: #7c3aed;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --text: #e2e8f0;
+            --dim: #64748b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            overflow-x: hidden;
+        }
+        .header {
+            text-align: center;
+            margin: 20px 0 16px;
+        }
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .sub {
+            color: var(--dim);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .status-card {
+            background: var(--surface);
+            border: 1px solid #1e293b;
+            border-radius: 16px;
+            padding: 20px;
+            width: 100%;
+            max-width: 380px;
+            margin-bottom: 16px;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #1e293b;
+        }
+        .status-row:last-child { border: none; }
+        .status-label { color: var(--dim); font-size: 13px; }
+        .status-value { font-size: 13px; font-weight: 600; }
+        .status-value.ok { color: var(--success); }
+        .status-value.err { color: var(--error); }
+        .status-value.wait { color: var(--warning); }
+
+        .nfc-area {
+            background: var(--surface);
+            border: 2px dashed #1e293b;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 380px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+        .nfc-area.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.15);
+        }
+        .nfc-area.writing {
+            border-color: var(--warning);
+            box-shadow: 0 0 30px rgba(245, 158, 11, 0.2);
+        }
+        .nfc-area.success {
+            border-color: var(--success);
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+        }
+        .nfc-area.error {
+            border-color: var(--error);
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.2);
+        }
+        .nfc-icon {
+            font-size: 64px;
+            margin-bottom: 12px;
+        }
+        .nfc-status {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .nfc-detail {
+            color: var(--dim);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 32px;
+            border-radius: 12px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            max-width: 380px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: white;
+        }
+        .btn-primary:hover { transform: scale(1.02); }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .log-area {
+            background: var(--surface);
+            border: 1px solid #1e293b;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 380px;
+            padding: 12px;
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .log-area h3 {
+            color: var(--dim);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        .log-entry {
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            color: var(--dim);
+            padding: 3px 0;
+            border-bottom: 1px solid #0f172a;
+        }
+        .log-entry.info { color: var(--accent); }
+        .log-entry.ok { color: var(--success); }
+        .log-entry.err { color: var(--error); }
+        .log-entry.warn { color: var(--warning); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse { animation: pulse 1.5s ease-in-out infinite; }
+        @keyframes tap-anim {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+        .tap-pulse { animation: tap-anim 1s ease-in-out infinite; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>⚡ TechTap</h1>
+        <div class="sub">Phone NFC Bridge</div>
+    </div>
+
+    <div class="status-card">
+        <div class="status-row">
+            <span class="status-label">WebSocket</span>
+            <span class="status-value" id="ws-status">Connecting...</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Web NFC</span>
+            <span class="status-value" id="nfc-status">Checking...</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Scanner</span>
+            <span class="status-value" id="scan-status">Inactive</span>
+        </div>
+        <div class="status-row">
+            <span class="status-label">Command</span>
+            <span class="status-value" id="cmd-status">Idle</span>
+        </div>
+    </div>
+
+    <div class="nfc-area" id="nfc-area">
+        <div class="nfc-icon" id="nfc-icon">📡</div>
+        <div class="nfc-status" id="nfc-main-status">NFC Bridge</div>
+        <div class="nfc-detail" id="nfc-detail">
+            Tap the button below to enable NFC scanning.<br>
+            Then use TechTap CLI on your PC.
+        </div>
+    </div>
+
+    <button class="btn btn-primary" id="enable-btn" onclick="enableNFC()">
+        📱 Enable NFC Scanner
+    </button>
+
+    <div class="log-area">
+        <h3>Activity Log</h3>
+        <div id="log-entries"></div>
+    </div>
+
+<script>
+// ── Configuration ─────────────────────────────────────────────────────
+const WS_PORT = 8765;
+const WS_URL = `ws://localhost:${WS_PORT}`;
+const RECONNECT_DELAY = 3000;
+
+// ── State ─────────────────────────────────────────────────────────────
+let ws = null;
+let ndefReader = null;
+let scanActive = false;
+let pendingCommand = null;
+let lastTagSerial = null;
+
+// ── DOM Elements ──────────────────────────────────────────────────────
+const wsStatusEl = document.getElementById('ws-status');
+const nfcStatusEl = document.getElementById('nfc-status');
+const scanStatusEl = document.getElementById('scan-status');
+const cmdStatusEl = document.getElementById('cmd-status');
+const nfcArea = document.getElementById('nfc-area');
+const nfcIcon = document.getElementById('nfc-icon');
+const nfcMainStatus = document.getElementById('nfc-main-status');
+const nfcDetail = document.getElementById('nfc-detail');
+const enableBtn = document.getElementById('enable-btn');
+const logEntries = document.getElementById('log-entries');
+
+// ── Logging ───────────────────────────────────────────────────────────
+function addLog(msg, level = '') {
+    const el = document.createElement('div');
+    el.className = `log-entry ${level}`;
+    const time = new Date().toLocaleTimeString();
+    el.textContent = `[${time}] ${msg}`;
+    logEntries.prepend(el);
+    // Keep last 50
+    while (logEntries.children.length > 50) {
+        logEntries.removeChild(logEntries.lastChild);
+    }
+}
+
+// ── UI Updates ────────────────────────────────────────────────────────
+function setNFCArea(state, icon, title, detail) {
+    nfcArea.className = `nfc-area ${state}`;
+    nfcIcon.className = state === 'writing' ? 'nfc-icon tap-pulse' : 'nfc-icon';
+    nfcIcon.textContent = icon;
+    nfcMainStatus.textContent = title;
+    nfcDetail.textContent = detail;
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────
+function connectWebSocket() {
+    if (ws && ws.readyState === WebSocket.OPEN) return;
+
+    ws = new WebSocket(WS_URL);
+
+    ws.onopen = () => {
+        wsStatusEl.textContent = 'Connected';
+        wsStatusEl.className = 'status-value ok';
+        addLog('Connected to TechTap PC', 'ok');
+
+        // Check Web NFC support
+        const nfcSupported = 'NDEFReader' in window;
+        nfcStatusEl.textContent = nfcSupported ? 'Supported' : 'Not Supported';
+        nfcStatusEl.className = `status-value ${nfcSupported ? 'ok' : 'err'}`;
+
+        ws.send(JSON.stringify({
+            event: 'connected',
+            nfc_supported: nfcSupported,
+            user_agent: navigator.userAgent
+        }));
+
+        if (!nfcSupported) {
+            setNFCArea('error', '❌', 'Web NFC Not Supported',
+                'Please open this page in Google Chrome on Android.');
+            enableBtn.disabled = true;
+            ws.send(JSON.stringify({ event: 'nfc_not_supported' }));
+        }
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            const msg = JSON.parse(event.data);
+            handleCommand(msg);
+        } catch (e) {
+            addLog(`Bad message: ${e.message}`, 'err');
+        }
+    };
+
+    ws.onclose = () => {
+        wsStatusEl.textContent = 'Disconnected';
+        wsStatusEl.className = 'status-value err';
+        addLog('Disconnected from PC', 'warn');
+        setTimeout(connectWebSocket, RECONNECT_DELAY);
+    };
+
+    ws.onerror = (err) => {
+        addLog('WebSocket error', 'err');
+    };
+}
+
+// ── Enable NFC ────────────────────────────────────────────────────────
+async function enableNFC() {
+    if (!('NDEFReader' in window)) {
+        setNFCArea('error', '❌', 'Not Supported',
+            'Web NFC requires Google Chrome on Android.');
+        return;
+    }
+
+    try {
+        ndefReader = new NDEFReader();
+        await ndefReader.scan();
+        scanActive = true;
+
+        scanStatusEl.textContent = 'Active';
+        scanStatusEl.className = 'status-value ok';
+        enableBtn.disabled = true;
+        enableBtn.textContent = '✓ NFC Scanner Active';
+
+        setNFCArea('active', '📡', 'Scanning for Tags',
+            'NFC scanner is active.\nWaiting for commands from TechTap CLI...');
+        addLog('NFC scanner activated', 'ok');
+
+        // Handle tag readings
+        ndefReader.onreading = (event) => {
+            lastTagSerial = event.serialNumber || 'unknown';
+            addLog(`Tag detected: ${lastTagSerial}`, 'info');
+
+            if (pendingCommand) {
+                handleTagForCommand(event, pendingCommand);
+                pendingCommand = null;
+            } else {
+                // No pending command — just show tag info
+                showTagDetected(event);
+            }
+        };
+
+        ndefReader.onreadingerror = (event) => {
+            addLog('Tag read error — try moving tag slowly', 'err');
+            if (pendingCommand && pendingCommand.cmd === 'read') {
+                sendResponse({
+                    event: 'error',
+                    error: 'Could not read tag. Try repositioning it.'
+                });
+                pendingCommand = null;
+                resetToIdle();
+            }
+        };
+
+    } catch (err) {
+        addLog(`NFC error: ${err.message}`, 'err');
+        setNFCArea('error', '❌', 'NFC Error', err.message);
+
+        if (err.name === 'NotAllowedError') {
+            nfcDetail.textContent = 'NFC permission denied. Check Chrome settings and make sure NFC is turned on in your phone settings.';
+        }
+    }
+}
+
+// ── Show basic tag detection (no command pending) ─────────────────────
+function showTagDetected(event) {
+    const records = [];
+    if (event.message && event.message.records) {
+        for (const rec of event.message.records) {
+            records.push(describeRecord(rec));
+        }
+    }
+    const info = records.length > 0
+        ? records.map(r => `${r.type}: ${r.content}`).join('\n')
+        : 'Empty tag';
+
+    setNFCArea('success', '✅', `Tag: ${event.serialNumber || '?'}`, info);
+
+    setTimeout(() => {
+        if (!pendingCommand) {
+            setNFCArea('active', '📡', 'Scanning for Tags',
+                'Waiting for commands from TechTap CLI...');
+        }
+    }, 3000);
+}
+
+// ── Handle commands from PC ───────────────────────────────────────────
+function handleCommand(msg) {
+    const cmd = msg.cmd;
+    addLog(`Command: ${cmd}`, 'info');
+    cmdStatusEl.textContent = cmd.toUpperCase();
+    cmdStatusEl.className = 'status-value wait';
+
+    switch (cmd) {
+        case 'write':
+            handleWrite(msg);
+            break;
+        case 'read':
+            handleRead(msg);
+            break;
+        case 'erase':
+            handleErase(msg);
+            break;
+        case 'lock':
+            handleLock(msg);
+            break;
+        case 'info':
+            handleInfo(msg);
+            break;
+        default:
+            addLog(`Unknown command: ${cmd}`, 'err');
+            sendResponse({ event: 'error', error: `Unknown command: ${cmd}` });
+    }
+}
+
+// ── Write Handler ─────────────────────────────────────────────────────
+async function handleWrite(msg) {
+    if (!ndefReader) {
+        sendResponse({ event: 'error', error: 'NFC not enabled. Tap Enable button on phone.' });
+        return;
+    }
+
+    setNFCArea('writing', '📱', 'TAP YOUR NFC TAG',
+        'Hold your NFC tag to the back of this phone...');
+
+    try {
+        let ndefMessage;
+
+        switch (msg.type) {
+            case 'url':
+                ndefMessage = {
+                    records: [{ recordType: 'url', data: msg.url }]
+                };
+                addLog(`Writing URL: ${msg.url}`, 'info');
+                break;
+
+            case 'text':
+                ndefMessage = {
+                    records: [{
+                        recordType: 'text',
+                        data: msg.text,
+                        lang: msg.lang || 'en'
+                    }]
+                };
+                addLog(`Writing text: ${msg.text.substring(0, 50)}`, 'info');
+                break;
+
+            case 'mime':
+                const mimeData = msg.text_data
+                    ? new TextEncoder().encode(msg.text_data)
+                    : hexToBytes(msg.hex_data || '');
+                ndefMessage = {
+                    records: [{
+                        recordType: 'mime',
+                        mediaType: msg.mime_type,
+                        data: mimeData
+                    }]
+                };
+                addLog(`Writing MIME: ${msg.mime_type}`, 'info');
+                break;
+
+            case 'raw':
+                // Attempt to write raw NDEF data as an unknown record
+                const rawData = hexToBytes(msg.hex_data || '');
+                ndefMessage = {
+                    records: [{
+                        recordType: 'unknown',
+                        data: rawData
+                    }]
+                };
+                addLog('Writing raw data', 'info');
+                break;
+
+            default:
+                sendResponse({ event: 'error', error: `Unknown write type: ${msg.type}` });
+                resetToIdle();
+                return;
+        }
+
+        // This blocks until a tag is tapped and written
+        await ndefReader.write(ndefMessage);
+
+        const uid = lastTagSerial || 'unknown';
+        addLog(`Write OK → ${uid}`, 'ok');
+
+        setNFCArea('success', '✅', 'Write Successful!', `Tag: ${uid}`);
+
+        sendResponse({
+            event: 'write_ok',
+            uid: uid.replace(/:/g, ''),
+            verified: false
+        });
+
+        setTimeout(resetToIdle, 2000);
+
+    } catch (err) {
+        addLog(`Write failed: ${err.message}`, 'err');
+        setNFCArea('error', '❌', 'Write Failed', err.message);
+        sendResponse({ event: 'error', error: err.message });
+        setTimeout(resetToIdle, 3000);
+    }
+}
+
+// ── Read Handler ──────────────────────────────────────────────────────
+function handleRead(msg) {
+    if (!scanActive) {
+        sendResponse({ event: 'error', error: 'NFC scanner not active. Tap Enable button on phone.' });
+        return;
+    }
+
+    setNFCArea('writing', '📱', 'TAP TAG TO READ',
+        'Hold your NFC tag to the back of this phone...');
+
+    // Set pending — next reading event will handle it
+    pendingCommand = { cmd: 'read' };
+}
+
+// ── Erase Handler ─────────────────────────────────────────────────────
+async function handleErase(msg) {
+    if (!ndefReader) {
+        sendResponse({ event: 'error', error: 'NFC not enabled. Tap Enable button on phone.' });
+        return;
+    }
+
+    setNFCArea('writing', '📱', 'TAP TAG TO ERASE',
+        'Hold your NFC tag to the back of this phone...');
+
+    try {
+        // Write an empty NDEF message to "erase" the tag
+        await ndefReader.write({ records: [{ recordType: 'text', data: '' }] });
+
+        const uid = lastTagSerial || 'unknown';
+        addLog(`Erase OK → ${uid}`, 'ok');
+
+        setNFCArea('success', '✅', 'Tag Erased!', `Tag: ${uid}`);
+        sendResponse({
+            event: 'erase_ok',
+            uid: uid.replace(/:/g, '')
+        });
+        setTimeout(resetToIdle, 2000);
+
+    } catch (err) {
+        addLog(`Erase failed: ${err.message}`, 'err');
+        setNFCArea('error', '❌', 'Erase Failed', err.message);
+        sendResponse({ event: 'error', error: err.message });
+        setTimeout(resetToIdle, 3000);
+    }
+}
+
+// ── Lock Handler ──────────────────────────────────────────────────────
+async function handleLock(msg) {
+    if (!ndefReader) {
+        sendResponse({ event: 'error', error: 'NFC not enabled. Tap Enable button on phone.' });
+        return;
+    }
+
+    setNFCArea('writing', '📱', 'TAP TAG TO LOCK',
+        '⚠ This will make the tag PERMANENTLY read-only!');
+
+    try {
+        await ndefReader.makeReadOnly();
+
+        const uid = lastTagSerial || 'unknown';
+        addLog(`Lock OK → ${uid}`, 'ok');
+
+        setNFCArea('success', '✅', 'Tag Locked!', `Tag: ${uid} — now read-only`);
+        sendResponse({
+            event: 'lock_ok',
+            uid: uid.replace(/:/g, '')
+        });
+        setTimeout(resetToIdle, 2000);
+
+    } catch (err) {
+        addLog(`Lock failed: ${err.message}`, 'err');
+        setNFCArea('error', '❌', 'Lock Failed', err.message);
+        sendResponse({ event: 'error', error: err.message });
+        setTimeout(resetToIdle, 3000);
+    }
+}
+
+// ── Info Handler ──────────────────────────────────────────────────────
+function handleInfo(msg) {
+    if (!scanActive) {
+        sendResponse({ event: 'error', error: 'NFC scanner not active. Tap Enable button on phone.' });
+        return;
+    }
+
+    setNFCArea('writing', '📱', 'TAP TAG FOR INFO',
+        'Hold your NFC tag to the back of this phone...');
+
+    pendingCommand = { cmd: 'info' };
+}
+
+// ── Handle tag tap for pending read/info commands ─────────────────────
+function handleTagForCommand(event, cmd) {
+    const serial = event.serialNumber || 'unknown';
+    const uid = serial.replace(/:/g, '');
+
+    if (cmd.cmd === 'read') {
+        const records = [];
+        if (event.message && event.message.records) {
+            for (const rec of event.message.records) {
+                records.push(describeRecord(rec));
+            }
+        }
+
+        addLog(`Read OK: ${records.length} record(s) from ${serial}`, 'ok');
+        setNFCArea('success', '✅', 'Tag Read!',
+            records.map(r => `${r.type}: ${r.content}`).join('\n') || 'Empty tag');
+
+        sendResponse({
+            event: 'read_ok',
+            uid: uid,
+            records: records,
+            raw: records.map(r => `${r.type}|${r.content}`)
+        });
+        setTimeout(resetToIdle, 2000);
+    }
+
+    else if (cmd.cmd === 'info') {
+        const records = [];
+        let totalSize = 0;
+        if (event.message && event.message.records) {
+            for (const rec of event.message.records) {
+                const desc = describeRecord(rec);
+                records.push(desc);
+                totalSize += desc.size || 0;
+            }
+        }
+
+        const info = {
+            uid: uid,
+            type: 'NFC Tag',
+            size: String(totalSize),
+            records: String(records.length),
+            locked: 'unknown'
+        };
+
+        addLog(`Info: ${serial}, ${records.length} records, ~${totalSize} bytes`, 'ok');
+        setNFCArea('success', '✅', `Tag: ${serial}`,
+            `Records: ${records.length} | Size: ~${totalSize} bytes`);
+
+        sendResponse({ event: 'tag_info', info: info });
+        setTimeout(resetToIdle, 2000);
+    }
+}
+
+// ── Parse NDEF Record ─────────────────────────────────────────────────
+function describeRecord(record) {
+    const result = { type: record.recordType, content: '', size: 0 };
+
+    try {
+        if (record.recordType === 'url') {
+            const decoder = new TextDecoder();
+            result.content = decoder.decode(record.data);
+            result.size = record.data.byteLength;
+        }
+        else if (record.recordType === 'text') {
+            const decoder = new TextDecoder();
+            result.content = decoder.decode(record.data);
+            result.size = record.data.byteLength;
+        }
+        else if (record.recordType === 'mime') {
+            result.type = `mime:${record.mediaType}`;
+            if (record.mediaType && record.mediaType.startsWith('text/')) {
+                const decoder = new TextDecoder();
+                result.content = decoder.decode(record.data);
+            } else {
+                result.content = `[Binary: ${record.data.byteLength} bytes]`;
+            }
+            result.size = record.data.byteLength;
+        }
+        else {
+            if (record.data) {
+                result.content = bytesToHex(new Uint8Array(record.data.buffer || record.data));
+                result.size = record.data.byteLength;
+            }
+        }
+    } catch (e) {
+        result.content = `[Parse error: ${e.message}]`;
+    }
+
+    return result;
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────
+function sendResponse(msg) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+    }
+    cmdStatusEl.textContent = msg.event.toUpperCase();
+    cmdStatusEl.className = `status-value ${msg.event.includes('ok') ? 'ok' : msg.event === 'error' ? 'err' : 'wait'}`;
+}
+
+function resetToIdle() {
+    pendingCommand = null;
+    cmdStatusEl.textContent = 'Idle';
+    cmdStatusEl.className = 'status-value';
+    if (scanActive) {
+        setNFCArea('active', '📡', 'Scanning for Tags',
+            'Waiting for commands from TechTap CLI...');
+    }
+}
+
+function hexToBytes(hex) {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+    }
+    return bytes.buffer;
+}
+
+function bytesToHex(bytes) {
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join('');
+}
+
+// ── Initialize ────────────────────────────────────────────────────────
+connectWebSocket();
+</script>
+
+</body>
+</html>

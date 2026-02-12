@@ -29,6 +29,16 @@ from techtap.utils import (
     format_timestamp, logger, NTAG_SPECS
 )
 
+# Phone NFC reader (lazy import — only loaded when needed)
+def _get_phone_reader_class():
+    """Import PhoneNFCReader on demand."""
+    try:
+        from techtap.phone_nfc import PhoneNFCReader
+        return PhoneNFCReader
+    except ImportError as e:
+        logger.error(f"Phone NFC module not available: {e}")
+        return None
+
 
 # ── Console Setup ──────────────────────────────────────────────────────────
 
@@ -407,7 +417,7 @@ def handle_lock(reader: RFIDReader, db: TagDatabase):
         show_error(result.get("error", "Lock failed"))
 
 
-def handle_read(reader: RFIDReader, db: TagDatabase):
+def handle_read(reader, db: TagDatabase):
     """Read tag contents."""
     console.print("\n[bold cyan]── Read Tag ──[/bold cyan]\n")
 
@@ -416,8 +426,23 @@ def handle_read(reader: RFIDReader, db: TagDatabase):
     if result.get("success"):
         raw_data = result.get("data", "")
         raw_lines = result.get("raw", [])
+        records = result.get("records", [])
 
-        # Try to parse NDEF from hex data
+        # Phone reader returns structured records directly
+        if records:
+            display = {}
+            for i, rec in enumerate(records):
+                rtype = rec.get("type", "unknown").upper()
+                content = rec.get("content", "")
+                label = f"Record {i+1}" if len(records) > 1 else "Type"
+                display[label] = rtype
+                display["Content"] = content[:200]
+                if rec.get("size"):
+                    display["Size"] = f"{rec['size']} bytes"
+            show_tag_summary(display)
+            return
+
+        # Arduino reader: try to parse NDEF from hex data
         if raw_data:
             try:
                 data_bytes = hex_to_bytes(raw_data)
@@ -646,16 +671,18 @@ def handle_history(reader: RFIDReader, db: TagDatabase):
     )
 
 
-def handle_settings(reader: RFIDReader, db: TagDatabase):
+def handle_settings(reader, db: TagDatabase):
     """Settings menu."""
     console.print("\n[bold cyan]── Settings ──[/bold cyan]\n")
 
     config = load_config()
+    reader_mode = config.get("reader_mode", "arduino")
 
     table = Table(box=box.SIMPLE, show_header=False, border_style="dim")
     table.add_column("Setting", style="white", width=20)
     table.add_column("Value", style="cyan")
 
+    table.add_row("Reader Mode", reader_mode.upper())
     table.add_row("Serial Port", config["serial"]["port"])
     table.add_row("Baud Rate", str(config["serial"]["baudrate"]))
     table.add_row("Module", config["module"])
@@ -665,29 +692,50 @@ def handle_settings(reader: RFIDReader, db: TagDatabase):
 
     console.print(table)
 
-    # List available ports
-    console.print("\n[bold]Available Serial Ports:[/bold]")
-    ports = list_serial_ports()
-    if ports:
-        for p in ports:
-            console.print(
-                f"  [cyan]{p['port']}[/cyan] — {p['description']}"
-            )
+    if reader_mode == "arduino":
+        # List available ports
+        console.print("\n[bold]Available Serial Ports:[/bold]")
+        ports = list_serial_ports()
+        if ports:
+            for p in ports:
+                console.print(
+                    f"  [cyan]{p['port']}[/cyan] — {p['description']}"
+                )
+        else:
+            console.print("  [dim]No serial ports detected.[/dim]")
     else:
-        console.print("  [dim]No serial ports detected.[/dim]")
+        console.print("\n[dim]Using phone NFC via USB/ADB.[/dim]")
 
     console.print()
 
-    if Confirm.ask("[yellow]Change serial port?[/yellow]", default=False):
-        port = Prompt.ask(
-            "[white]Port[/white]",
-            default=config["serial"]["port"]
+    # Switch reader mode
+    if Confirm.ask(
+        f"[yellow]Switch reader mode? (currently: {reader_mode})[/yellow]",
+        default=False
+    ):
+        new_mode = Prompt.ask(
+            "[white]Reader mode[/white]",
+            choices=["arduino", "phone"],
+            default="phone" if reader_mode == "arduino" else "arduino"
         )
-        config["serial"]["port"] = port
+        config["reader_mode"] = new_mode
         save_config(config)
-        show_success(f"Port set to {port}. Reconnecting...")
-        reader.port = port
-        reader.reconnect()
+        show_success(
+            f"Reader mode set to {new_mode.upper()}.\n"
+            "  Restart TechTap to use the new reader."
+        )
+
+    if reader_mode == "arduino":
+        if Confirm.ask("[yellow]Change serial port?[/yellow]", default=False):
+            port = Prompt.ask(
+                "[white]Port[/white]",
+                default=config["serial"]["port"]
+            )
+            config["serial"]["port"] = port
+            save_config(config)
+            show_success(f"Port set to {port}. Reconnecting...")
+            reader.port = port
+            reader.reconnect()
 
     if Confirm.ask("[yellow]Change other settings?[/yellow]", default=False):
         config["verify_after_write"] = Confirm.ask(
@@ -703,8 +751,63 @@ def handle_settings(reader: RFIDReader, db: TagDatabase):
 
 # ── Main Application Loop ─────────────────────────────────────────────────
 
-def connect_reader() -> RFIDReader:
-    """Initialize and connect to RFID reader."""
+def connect_reader():
+    """Initialize and connect to RFID reader (Arduino or Phone)."""
+    config = load_config()
+    reader_mode = config.get("reader_mode", "arduino")
+
+    if reader_mode == "phone":
+        # Phone NFC mode
+        PhoneNFCReader = _get_phone_reader_class()
+        if PhoneNFCReader is None:
+            show_error(
+                "Phone NFC module not available.\n"
+                "  Install websockets:  pip install websockets\n"
+                "  Falling back to Arduino mode."
+            )
+            reader_mode = "arduino"
+        else:
+            console.print(
+                "\n[bold cyan]📱 Phone NFC Mode[/bold cyan]\n"
+                "[dim]Using your Android phone as the NFC reader via USB.[/dim]\n"
+            )
+            reader = PhoneNFCReader()
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console, transient=True,
+            ) as progress:
+                progress.add_task(
+                    "Setting up phone NFC bridge (ADB → WebSocket → Chrome)...",
+                    total=None
+                )
+                connected = reader.connect()
+
+            if connected and reader.connected:
+                show_success(
+                    "Phone NFC bridge active!\n"
+                    "  Make sure you tapped 'Enable NFC Scanner' on your phone."
+                )
+            elif connected:
+                show_warning(
+                    "Servers started but phone hasn't connected yet.\n"
+                    "  On your phone: open Chrome and go to:\n"
+                    "  http://localhost:8766/phone_nfc.html\n"
+                    "  Then tap 'Enable NFC Scanner'."
+                )
+            else:
+                show_error(
+                    "Could not set up phone NFC bridge.\n"
+                    "  Check:\n"
+                    "  1. ADB is installed (Android SDK Platform Tools)\n"
+                    "  2. USB Debugging is enabled on your phone\n"
+                    "  3. Phone is connected via USB\n"
+                    "  4. You accepted 'Allow USB debugging' on phone"
+                )
+            return reader
+
+    # Arduino mode (default)
     reader = RFIDReader()
 
     with Progress(
