@@ -336,8 +336,17 @@ echo "    3. Set reader_mode to 'phone' in config.json"
 echo ""
 
 # Ask if user wants to launch now
-read -rp "Launch TechTap now? [Y/n] " LAUNCH
-case "$LAUNCH" in
-    [nN]*) echo "Run later: cd $INSTALL_TO && source .venv/bin/activate && python -m techtap" ;;
-    *)     python -m techtap ;;
-esac
+# When piped via curl|bash, stdin is the script itself, so read from /dev/tty
+if [ -t 0 ]; then
+    # Running normally (not piped)
+    read -rp "Launch TechTap now? [Y/n] " LAUNCH
+else
+    # Running via curl|bash — read from terminal directly
+    read -rp "Launch TechTap now? [Y/n] " LAUNCH </dev/tty || LAUNCH="n"
+fi
+
+if [ "$LAUNCH" != "n" ] && [ "$LAUNCH" != "N" ]; then
+    python -m techtap
+else
+    echo "Run later: cd $INSTALL_TO && source .venv/bin/activate && python -m techtap"
+fi
