@@ -1,5 +1,5 @@
 """
-TechTap — Phone NFC Bridge
+TOMOTAP — Phone NFC Bridge
 Uses your Android phone's NFC reader via ADB + WebSocket + Web NFC API.
 
 How it works:

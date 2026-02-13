@@ -1,5 +1,5 @@
 """
-TechTap — Entry point for `python -m techtap`
+TOMOTAP — Entry point for `python -m techtap`
 """
 
 from techtap.cli import main

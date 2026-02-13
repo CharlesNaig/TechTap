@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>TechTap — Phone NFC Bridge</title>
+    <title>TOMOTAP — Phone NFC Bridge</title>
     <style>
         :root {
-            --bg: #0a0a0f;
-            --surface: #14141f;
-            --accent: #00d4ff;
-            --accent2: #7c3aed;
+            --bg: #060d09;
+            --surface: #0c1a12;
+            --accent: #00c853;
+            --accent2: #a5d6a7;
             --success: #22c55e;
             --error: #ef4444;
             --warning: #f59e0b;
-            --text: #e2e8f0;
-            --dim: #64748b;
+            --text: #e0f2e9;
+            --dim: #5a8a6e;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -46,7 +46,7 @@
         }
         .status-card {
             background: var(--surface);
-            border: 1px solid #1e293b;
+            border: 1px solid #1a2e22;
             border-radius: 16px;
             padding: 20px;
             width: 100%;
@@ -58,7 +58,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 8px 0;
-            border-bottom: 1px solid #1e293b;
+            border-bottom: 1px solid #1a2e22;
         }
         .status-row:last-child { border: none; }
         .status-label { color: var(--dim); font-size: 13px; }
@@ -69,7 +69,7 @@
 
         .nfc-area {
             background: var(--surface);
-            border: 2px dashed #1e293b;
+            border: 2px dashed #1a2e22;
             border-radius: 20px;
             width: 100%;
             max-width: 380px;
@@ -80,7 +80,7 @@
         }
         .nfc-area.active {
             border-color: var(--accent);
-            box-shadow: 0 0 30px rgba(0, 212, 255, 0.15);
+            box-shadow: 0 0 30px rgba(0, 200, 83, 0.15);
         }
         .nfc-area.writing {
             border-color: var(--warning);
@@ -137,7 +137,7 @@
 
         .log-area {
             background: var(--surface);
-            border: 1px solid #1e293b;
+            border: 1px solid #1a2e22;
             border-radius: 12px;
             width: 100%;
             max-width: 380px;
@@ -158,7 +158,7 @@
             font-size: 11px;
             color: var(--dim);
             padding: 3px 0;
-            border-bottom: 1px solid #0f172a;
+            border-bottom: 1px solid #071209;
         }
         .log-entry.info { color: var(--accent); }
         .log-entry.ok { color: var(--success); }
@@ -180,7 +180,8 @@
 <body>
 
     <div class="header">
-        <h1>⚡ TechTap</h1>
+        <img src="tomotap-logo.png" alt="TOMOTAP" style="width: 80px; height: 80px; border-radius: 16px; margin-bottom: 8px; object-fit: contain;">
+        <h1>TOMOTAP</h1>
         <div class="sub">Phone NFC Bridge</div>
     </div>
 
@@ -208,7 +209,7 @@
         <div class="nfc-status" id="nfc-main-status">NFC Bridge</div>
         <div class="nfc-detail" id="nfc-detail">
             Tap the button below to enable NFC scanning.<br>
-            Then use TechTap CLI on your PC.
+            Then use TOMOTAP CLI on your PC.
         </div>
     </div>
 
@@ -277,7 +278,7 @@ function connectWebSocket() {
     ws.onopen = () => {
         wsStatusEl.textContent = 'Connected';
         wsStatusEl.className = 'status-value ok';
-        addLog('Connected to TechTap PC', 'ok');
+        addLog('Connected to TOMOTAP PC', 'ok');
 
         // Check Web NFC support
         const nfcSupported = 'NDEFReader' in window;
@@ -338,7 +339,7 @@ async function enableNFC() {
         enableBtn.textContent = '✓ NFC Scanner Active';
 
         setNFCArea('active', '📡', 'Scanning for Tags',
-            'NFC scanner is active.\nWaiting for commands from TechTap CLI...');
+            'NFC scanner is active.\nWaiting for commands from TOMOTAP CLI...');
         addLog('NFC scanner activated', 'ok');
 
         // Handle tag readings
@@ -394,7 +395,7 @@ function showTagDetected(event) {
     setTimeout(() => {
         if (!pendingCommand) {
             setNFCArea('active', '📡', 'Scanning for Tags',
-                'Waiting for commands from TechTap CLI...');
+                'Waiting for commands from TOMOTAP CLI...');
         }
     }, 3000);
 }
@@ -713,7 +714,7 @@ function resetToIdle() {
     cmdStatusEl.className = 'status-value';
     if (scanActive) {
         setNFCArea('active', '📡', 'Scanning for Tags',
-            'Waiting for commands from TechTap CLI...');
+            'Waiting for commands from TOMOTAP CLI...');
     }
 }
 

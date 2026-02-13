@@ -1,5 +1,5 @@
 """
-TechTap — CLI Application
+TOMOTAP — CLI Application
 Interactive terminal interface for NFC tag programming.
 """
 
@@ -48,24 +48,24 @@ console = Console()
 # ── Display Helpers ────────────────────────────────────────────────────────
 
 def show_banner():
-    """Display TechTap banner."""
-    banner_text = Text(get_banner(), style="bold cyan")
+    """Display TOMOTAP banner."""
+    banner_text = Text(get_banner(), style="bold green")
     console.print(banner_text)
     console.print(f"  {get_version()}  |  Smart Identity via Tap\n",
-                  style="dim white")
+                  style="dim bright_green")
 
 
 def show_menu():
     """Display main menu."""
     table = Table(
-        title="[bold cyan]TECHTAP CLI[/bold cyan]",
+        title="[bold green]TOMOTAP CLI[/bold green]",
         box=box.ROUNDED,
-        border_style="cyan",
+        border_style="green",
         title_style="bold white",
         show_header=False,
         padding=(0, 2),
     )
-    table.add_column("Option", style="bold yellow", width=4)
+    table.add_column("Option", style="bold bright_green", width=4)
     table.add_column("Action", style="white")
 
     menu_items = [
@@ -107,21 +107,21 @@ def show_warning(msg: str):
 
 
 def show_info(msg: str):
-    console.print(f"[dim cyan]ℹ {msg}[/dim cyan]")
+    console.print(f"[dim green]ℹ {msg}[/dim green]")
 
 
 def show_tap_prompt():
     """Called when Arduino is waiting for card tap."""
     console.print(
-        "\n[bold blink yellow]📱 TAP YOUR NFC CARD NOW...[/bold blink yellow]\n"
+        "\n[bold blink bright_green]📱 TAP YOUR NFC CARD NOW...[/bold blink bright_green]\n"
     )
 
 
 def show_data_preview(record_type: str, data: bytes, summary: str = ""):
     """Show a preview of data before writing."""
     panel_content = (
-        f"[white]Type:[/white]  [cyan]{record_type}[/cyan]\n"
-        f"[white]Size:[/white]  [cyan]{len(data)} bytes[/cyan]\n"
+        f"[white]Type:[/white]  [green]{record_type}[/green]\n"
+        f"[white]Size:[/white]  [green]{len(data)} bytes[/green]\n"
     )
     if summary:
         panel_content += f"[white]Data:[/white]  [green]{summary}[/green]\n"
@@ -138,7 +138,7 @@ def show_data_preview(record_type: str, data: bytes, summary: str = ""):
     console.print(Panel(
         panel_content,
         title="[bold]Data Preview[/bold]",
-        border_style="blue",
+        border_style="green",
         box=box.ROUNDED
     ))
 
@@ -146,14 +146,14 @@ def show_data_preview(record_type: str, data: bytes, summary: str = ""):
 def show_tag_summary(info: dict):
     """Display formatted tag info."""
     table = Table(
-        title="[bold cyan]── TAG INFO ──[/bold cyan]",
+        title="[bold green]── TAG INFO ──[/bold green]",
         box=box.SIMPLE_HEAVY,
-        border_style="cyan",
+        border_style="green",
         show_header=False,
         padding=(0, 1),
     )
     table.add_column("Field", style="bold white", width=12)
-    table.add_column("Value", style="green")
+    table.add_column("Value", style="bright_green")
 
     for key, value in info.items():
         display_key = key.replace("_", " ").title()
@@ -222,7 +222,7 @@ def do_write(reader: RFIDReader, db: TagDatabase,
 
 def handle_write_url(reader: RFIDReader, db: TagDatabase):
     """Write a website URL."""
-    console.print("\n[bold cyan]── Write Website URL ──[/bold cyan]\n")
+    console.print("\n[bold green]── Write Website URL ──[/bold green]\n")
 
     url = Prompt.ask("[white]Enter URL[/white]",
                      default="https://")
@@ -237,7 +237,7 @@ def handle_write_url(reader: RFIDReader, db: TagDatabase):
 
 def handle_write_vcard(reader: RFIDReader, db: TagDatabase):
     """Write a vCard contact."""
-    console.print("\n[bold cyan]── Write Contact Card ──[/bold cyan]\n")
+    console.print("\n[bold green]── Write Contact Card ──[/bold green]\n")
 
     name = Prompt.ask("[white]Full Name[/white]")
     if not name.strip():
@@ -271,7 +271,7 @@ def handle_write_vcard(reader: RFIDReader, db: TagDatabase):
 
 def handle_write_phone(reader: RFIDReader, db: TagDatabase):
     """Write a phone number."""
-    console.print("\n[bold cyan]── Write Phone Number ──[/bold cyan]\n")
+    console.print("\n[bold green]── Write Phone Number ──[/bold green]\n")
 
     phone = Prompt.ask("[white]Phone Number (with country code)[/white]")
 
@@ -286,7 +286,7 @@ def handle_write_phone(reader: RFIDReader, db: TagDatabase):
 
 def handle_write_email(reader: RFIDReader, db: TagDatabase):
     """Write an email address."""
-    console.print("\n[bold cyan]── Write Email Address ──[/bold cyan]\n")
+    console.print("\n[bold green]── Write Email Address ──[/bold green]\n")
 
     email = Prompt.ask("[white]Email Address[/white]")
 
@@ -303,14 +303,14 @@ def handle_write_email(reader: RFIDReader, db: TagDatabase):
 
 def handle_write_social(reader: RFIDReader, db: TagDatabase):
     """Write a social media link."""
-    console.print("\n[bold cyan]── Write Social Media ──[/bold cyan]\n")
+    console.print("\n[bold green]── Write Social Media ──[/bold green]\n")
 
     platforms = get_social_platforms()
     console.print("[dim]Supported platforms:[/dim]")
     # Display in columns
     cols = 4
     for i in range(0, len(platforms), cols):
-        row = "  ".join(f"[cyan]{p:<14}[/cyan]" for p in platforms[i:i + cols])
+        row = "  ".join(f"[green]{p:<14}[/green]" for p in platforms[i:i + cols])
         console.print(f"  {row}")
     console.print()
 
@@ -332,7 +332,7 @@ def handle_write_social(reader: RFIDReader, db: TagDatabase):
 
 def handle_write_text(reader: RFIDReader, db: TagDatabase):
     """Write custom text."""
-    console.print("\n[bold cyan]── Write Custom Text ──[/bold cyan]\n")
+    console.print("\n[bold green]── Write Custom Text ──[/bold green]\n")
 
     text = Prompt.ask("[white]Enter text[/white]")
     if not text.strip():
@@ -345,7 +345,7 @@ def handle_write_text(reader: RFIDReader, db: TagDatabase):
 
 def handle_write_wifi(reader: RFIDReader, db: TagDatabase):
     """Write WiFi credentials."""
-    console.print("\n[bold cyan]── Write WiFi Credentials ──[/bold cyan]\n")
+    console.print("\n[bold green]── Write WiFi Credentials ──[/bold green]\n")
 
     ssid = Prompt.ask("[white]WiFi Network Name (SSID)[/white]")
     if not ssid.strip():
@@ -370,7 +370,7 @@ def handle_format(reader, db: TagDatabase):
     """Format a tag with empty NDEF container (no records, just NDEF structure)."""
     from techtap.ndef_encoder import encode_empty_ndef
 
-    console.print("\n[bold cyan]── Format Tag (NDEF) ──[/bold cyan]\n")
+    console.print("\n[bold green]── Format Tag (NDEF) ──[/bold green]\n")
     console.print(
         "[white]This writes an empty NDEF container to the tag.[/white]\n"
         "[dim]The tag will be NDEF-formatted but contain no records (no URL, text, etc).\n"
@@ -405,7 +405,7 @@ def handle_format(reader, db: TagDatabase):
 
 def handle_erase(reader: RFIDReader, db: TagDatabase):
     """Erase a tag."""
-    console.print("\n[bold cyan]── Erase Tag ──[/bold cyan]\n")
+    console.print("\n[bold green]── Erase Tag ──[/bold green]\n")
 
     if not Confirm.ask("[yellow]This will erase ALL data on the tag. Continue?[/yellow]"):
         return
@@ -429,7 +429,7 @@ def handle_erase(reader: RFIDReader, db: TagDatabase):
 
 def handle_lock(reader: RFIDReader, db: TagDatabase):
     """Lock a tag."""
-    console.print("\n[bold cyan]── Lock Tag ──[/bold cyan]\n")
+    console.print("\n[bold green]── Lock Tag ──[/bold green]\n")
 
     console.print(
         "[bold red]⚠ WARNING: Locking a tag is PERMANENT on most NTAG chips.[/bold red]\n"
@@ -457,7 +457,7 @@ def handle_lock(reader: RFIDReader, db: TagDatabase):
 
 def handle_read(reader, db: TagDatabase):
     """Read tag contents."""
-    console.print("\n[bold cyan]── Read Tag ──[/bold cyan]\n")
+    console.print("\n[bold green]── Read Tag ──[/bold green]\n")
 
     result = reader.read_tag(on_tap_prompt=show_tap_prompt)
 
@@ -508,7 +508,7 @@ def handle_read(reader, db: TagDatabase):
 
 def handle_tag_info(reader: RFIDReader, db: TagDatabase):
     """Get detailed tag info."""
-    console.print("\n[bold cyan]── Tag Info ──[/bold cyan]\n")
+    console.print("\n[bold green]── Tag Info ──[/bold green]\n")
 
     result = reader.get_tag_info(on_tap_prompt=show_tap_prompt)
 
@@ -537,7 +537,7 @@ def handle_tag_info(reader: RFIDReader, db: TagDatabase):
 
 def handle_bulk_write(reader: RFIDReader, db: TagDatabase):
     """Bulk write mode — same data to multiple tags."""
-    console.print("\n[bold cyan]── Bulk Write Mode ──[/bold cyan]\n")
+    console.print("\n[bold green]── Bulk Write Mode ──[/bold green]\n")
     console.print("[dim]Write the same data to multiple cards in sequence.[/dim]\n")
 
     record_type = Prompt.ask(
@@ -622,7 +622,7 @@ def handle_bulk_write(reader: RFIDReader, db: TagDatabase):
     try:
         while True:
             console.print(
-                f"[cyan]Card #{written + failed + 1}[/cyan] — "
+                f"[green]Card #{written + failed + 1}[/green] — "
                 f"[green]{written} written[/green] | "
                 f"[red]{failed} failed[/red]"
             )
@@ -660,14 +660,14 @@ def handle_bulk_write(reader: RFIDReader, db: TagDatabase):
         f"[red]Failed:  {failed}[/red]\n"
         f"[white]Total:   {written + failed}[/white]",
         title="[bold]Bulk Session Summary[/bold]",
-        border_style="cyan",
+        border_style="green",
         box=box.ROUNDED
     ))
 
 
 def handle_history(reader: RFIDReader, db: TagDatabase):
     """Show write history."""
-    console.print("\n[bold cyan]── Write History ──[/bold cyan]\n")
+    console.print("\n[bold green]── Write History ──[/bold green]\n")
 
     history = db.get_write_history(limit=20)
     if not history:
@@ -681,7 +681,7 @@ def handle_history(reader: RFIDReader, db: TagDatabase):
         title_style="bold white"
     )
     table.add_column("Time", style="dim", width=19)
-    table.add_column("UID", style="cyan", width=12)
+    table.add_column("UID", style="green", width=12)
     table.add_column("Op", style="yellow", width=10)
     table.add_column("Type", style="white", width=8)
     table.add_column("Content", style="green", max_width=30)
@@ -711,14 +711,14 @@ def handle_history(reader: RFIDReader, db: TagDatabase):
 
 def handle_settings(reader, db: TagDatabase):
     """Settings menu."""
-    console.print("\n[bold cyan]── Settings ──[/bold cyan]\n")
+    console.print("\n[bold green]── Settings ──[/bold green]\n")
 
     config = load_config()
     reader_mode = config.get("reader_mode", "arduino")
 
     table = Table(box=box.SIMPLE, show_header=False, border_style="dim")
     table.add_column("Setting", style="white", width=20)
-    table.add_column("Value", style="cyan")
+    table.add_column("Value", style="green")
 
     table.add_row("Reader Mode", reader_mode.upper())
     table.add_row("Serial Port", config["serial"]["port"])
@@ -737,7 +737,7 @@ def handle_settings(reader, db: TagDatabase):
         if ports:
             for p in ports:
                 console.print(
-                    f"  [cyan]{p['port']}[/cyan] — {p['description']}"
+                    f"  [green]{p['port']}[/green] — {p['description']}"
                 )
         else:
             console.print("  [dim]No serial ports detected.[/dim]")
@@ -760,7 +760,7 @@ def handle_settings(reader, db: TagDatabase):
         save_config(config)
         show_success(
             f"Reader mode set to {new_mode.upper()}.\n"
-            "  Restart TechTap to use the new reader."
+            "  Restart TOMOTAP to use the new reader."
         )
 
     if reader_mode == "arduino":
@@ -806,7 +806,7 @@ def connect_reader():
             reader_mode = "arduino"
         else:
             console.print(
-                "\n[bold cyan]📱 Phone NFC Mode[/bold cyan]\n"
+                "\n[bold green]📱 Phone NFC Mode[/bold green]\n"
                 "[dim]Using your Android phone as the NFC reader via USB.[/dim]\n"
             )
             reader = PhoneNFCReader()
@@ -861,7 +861,7 @@ def connect_reader():
     else:
         show_warning(
             "Could not connect to Arduino.\n"
-            "  Make sure your Arduino is plugged in and running TechTap firmware.\n"
+            "  Make sure your Arduino is plugged in and running TOMOTAP firmware.\n"
             "  You can change the port in Settings (option 14).\n"
             "  Running in offline mode — encoding features still work."
         )
@@ -904,7 +904,7 @@ def main():
                 )
 
                 if choice == "0":
-                    console.print("\n[bold cyan]Goodbye! Keep tapping. 🤙[/bold cyan]\n")
+                    console.print("\n[bold green]Goodbye! Keep tapping. 🤙[/bold green]\n")
                     break
 
                 handler = HANDLERS.get(choice)

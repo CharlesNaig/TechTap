@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────
-#  TechTap — One-Command Setup for Linux / macOS
+#  TOMOTAP — One-Command Setup for Linux / macOS
 #  Installs Python 3, pip, ADB (platform-tools), clones the repo,
-#  installs dependencies, and launches TechTap.
+#  installs dependencies, and launches TOMOTAP.
 #
 #  Usage:
-#    curl -sSL https://raw.githubusercontent.com/CharlesNaig/TechTap/main/setup.sh | bash
+#    curl -sSL https://raw.githubusercontent.com/CharlesNaig/TOMOTAP/main/setup.sh | bash
 # ─────────────────────────────────────────────────────────────────────
 set -e
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-CYAN='\033[0;36m'
+MINT='\033[38;5;115m'
 NC='\033[0m'
 
 banner() {
-    echo -e "${CYAN}"
-    echo '  _______________  _  _____  _   ___'
-    echo ' |_   _| __| __| || ||_   _|/ \ | _ \'
-    echo '   | | | _|| _|| __ |  | | / _ \|  _/'
-    echo '   |_| |___|___|_||_|  |_|/_/ \_\_|'
+    echo -e "${GREEN}"
+    echo '  _____ ___  __  __  ___ _____  _   ___'
+    echo ' |_   _/ _ \|  \/  |/ _ \_   _|/ \ | _ \'
+    echo '   | || (_) | |\/| | (_) || | / _ \|  _/'
+    echo '   |_| \___/|_|  |_|\___/ |_|/_/ \_\_|'
     echo ''
     echo -e "  Smart Identity via Tap — Linux/macOS Setup${NC}"
     echo ''
@@ -29,7 +29,7 @@ banner() {
 info()    { echo -e "${GREEN}[✓]${NC} $1"; }
 warn()    { echo -e "${YELLOW}[!]${NC} $1"; }
 fail()    { echo -e "${RED}[✗]${NC} $1"; exit 1; }
-step()    { echo -e "\n${CYAN}── $1 ──${NC}"; }
+step()    { echo -e "\n${GREEN}── $1 ──${NC}"; }
 
 banner
 
@@ -227,7 +227,7 @@ if [ "$NEED_ADB" = true ]; then
     # Fallback: download platform-tools directly from Google
     if [ "$ADB_OK" = false ]; then
         warn "Downloading platform-tools from Google..."
-        ADB_DIR="$HOME/.local/share/techtap"
+        ADB_DIR="$HOME/.local/share/tomotap"
         mkdir -p "$ADB_DIR"
 
         if [ "$PLATFORM" = "macos" ]; then
@@ -247,8 +247,8 @@ if [ "$NEED_ADB" = true ]; then
         [ -f "$HOME/.bashrc" ] && SHELL_RC="$HOME/.bashrc"
         [ -f "$HOME/.zshrc" ]  && SHELL_RC="$HOME/.zshrc"
         if [ -n "$SHELL_RC" ]; then
-            LINE="export PATH=\"$ADB_DIR/platform-tools:\$PATH\"  # TechTap ADB"
-            grep -qF "TechTap ADB" "$SHELL_RC" 2>/dev/null || echo "$LINE" >> "$SHELL_RC"
+            LINE="export PATH=\"$ADB_DIR/platform-tools:\$PATH\"  # TOMOTAP ADB"
+            grep -qF "TOMOTAP ADB" "$SHELL_RC" 2>/dev/null || echo "$LINE" >> "$SHELL_RC"
             info "Added ADB to $SHELL_RC"
         fi
         ADB_OK=true
@@ -268,17 +268,17 @@ fi
 #  PHASE 2: Clone repository
 # ═══════════════════════════════════════════════════════════════════
 
-step "Setting up TechTap"
+step "Setting up TOMOTAP"
 
-INSTALL_TO="$HOME/TechTap"
+INSTALL_TO="$HOME/TOMOTAP"
 
 if [ -d "$INSTALL_TO/.git" ]; then
-    info "TechTap already cloned at $INSTALL_TO — pulling latest..."
+    info "TOMOTAP already cloned at $INSTALL_TO — pulling latest..."
     cd "$INSTALL_TO"
     git pull --ff-only origin main 2>/dev/null || git pull origin main
 else
-    info "Cloning TechTap..."
-    git clone https://github.com/CharlesNaig/TechTap.git "$INSTALL_TO"
+    info "Cloning TOMOTAP..."
+    git clone https://github.com/CharlesNaig/TOMOTAP.git "$INSTALL_TO"
     cd "$INSTALL_TO"
 fi
 
@@ -323,11 +323,11 @@ step "Setup complete!"
 
 echo ""
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  TechTap is ready!${NC}"
+echo -e "${GREEN}  TOMOTAP is ready!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-echo "  To start TechTap:"
-echo -e "    ${CYAN}cd $INSTALL_TO && source .venv/bin/activate && python -m techtap${NC}"
+echo "  To start TOMOTAP:"
+echo -e "    ${GREEN}cd $INSTALL_TO && source .venv/bin/activate && python -m techtap${NC}"
 echo ""
 echo "  For Phone NFC mode, make sure to:"
 echo "    1. Enable USB Debugging on your phone"
@@ -339,10 +339,10 @@ echo ""
 # When piped via curl|bash, stdin is the script itself, so read from /dev/tty
 if [ -t 0 ]; then
     # Running normally (not piped)
-    read -rp "Launch TechTap now? [Y/n] " LAUNCH
+    read -rp "Launch TOMOTAP now? [Y/n] " LAUNCH
 else
     # Running via curl|bash — read from terminal directly
-    read -rp "Launch TechTap now? [Y/n] " LAUNCH </dev/tty || LAUNCH="n"
+    read -rp "Launch TOMOTAP now? [Y/n] " LAUNCH </dev/tty || LAUNCH="n"
 fi
 
 if [ "$LAUNCH" != "n" ] && [ "$LAUNCH" != "N" ]; then

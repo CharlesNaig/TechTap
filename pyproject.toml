@@ -3,14 +3,14 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "techtap"
+name = "tomotap"
 version = "1.0.0"
-description = "Smart Identity via Tap — CLI NFC tag writer & reader"
+description = "TOMOTAP — Smart Identity via Tap — CLI NFC tag writer & reader"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
-    {name = "TechTap"}
+    {name = "TOMOTAP"}
 ]
 keywords = ["nfc", "rfid", "ndef", "arduino", "ntag", "cli"]
 classifiers = [
@@ -38,8 +38,8 @@ dependencies = [
 techtap = "techtap.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/CharlesNaig/TechTap"
-Repository = "https://github.com/CharlesNaig/TechTap"
+Homepage = "https://github.com/CharlesNaig/TOMOTAP"
+Repository = "https://github.com/CharlesNaig/TOMOTAP"
 
 [tool.setuptools]
 packages = ["techtap"]

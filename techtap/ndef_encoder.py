@@ -1,5 +1,5 @@
 """
-TechTap — NDEF Encoder Module
+TOMOTAP — NDEF Encoder Module
 Encodes data into NDEF-compatible binary format for NTAG213/215/216 cards.
 Phones (Android/iOS) can natively read these records.
 """

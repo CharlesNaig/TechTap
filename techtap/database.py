@@ -1,5 +1,5 @@
 """
-TechTap — Tag Database & Logging Module
+TOMOTAP — Tag Database & Logging Module
 Stores tag write history, UIDs, and operation logs in SQLite.
 """
 
@@ -12,7 +12,7 @@ from typing import Optional
 from techtap.utils import DATA_DIR, logger, format_uid
 
 
-DB_PATH = DATA_DIR / "techtap.db"
+DB_PATH = DATA_DIR / "tomotap.db"
 
 
 class TagDatabase:

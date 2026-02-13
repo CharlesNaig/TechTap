@@ -1,5 +1,5 @@
 """
-TechTap — Utility Functions
+TOMOTAP — Utility Functions
 Helpers for validation, formatting, logging, and common operations.
 """
 
@@ -24,11 +24,11 @@ CONFIG_PATH = PROJECT_ROOT / "config.json"
 # ── Logging Setup ──────────────────────────────────────────────────────────
 
 def setup_logging(level: int = logging.INFO) -> logging.Logger:
-    """Configure and return the TechTap logger."""
+    """Configure and return the TOMOTAP logger."""
     LOG_DIR.mkdir(exist_ok=True)
-    log_file = LOG_DIR / f"techtap_{datetime.now():%Y%m%d}.log"
+    log_file = LOG_DIR / f"tomotap_{datetime.now():%Y%m%d}.log"
 
-    logger = logging.getLogger("techtap")
+    logger = logging.getLogger("tomotap")
     logger.setLevel(level)
 
     if not logger.handlers:
@@ -185,10 +185,10 @@ def check_tag_capacity(tag_type: str, data_size: int) -> dict:
 # ── Banner ─────────────────────────────────────────────────────────────────
 
 BANNER = r"""
-  _______________  _  _____  _   ___
- |_   _| __| __| || ||_   _|/ \ | _ \
-   | | | _|| _|| __ |  | | / _ \|  _/
-   |_| |___|___|_||_|  |_|/_/ \_\_|
+  _____ ___  __  __  ___ _____  _   ___
+ |_   _/ _ \|  \/  |/ _ \_   _|/ \ | _ \
+   | || (_) | |\/| | (_) || | / _ \|  _/
+   |_| \___/|_|  |_|\___/ |_|/_/ \_\_|
 
   Smart Identity via Tap
   ─────────────────────────────────
@@ -204,4 +204,4 @@ def get_banner() -> str:
 
 def get_version() -> str:
     """Return version string."""
-    return f"TechTap v{VERSION}"
+    return f"TOMOTAP v{VERSION}"

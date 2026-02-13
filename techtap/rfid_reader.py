@@ -1,5 +1,5 @@
 """
-TechTap — RFID Reader Serial Communication Handler
+TOMOTAP — RFID Reader Serial Communication Handler
 Manages serial connection to Arduino + PN532/MFRC522 module.
 Handles auto-detection, reconnection, and command protocol.
 """
@@ -174,7 +174,7 @@ class RFIDReader:
                     logger.info(f"Connected to {port} @ {self.baudrate} baud")
                     return True
                 else:
-                    logger.warning(f"Connected to {port} but PING failed. Device may not be running TechTap firmware.")
+                    logger.warning(f"Connected to {port} but PING failed. Device may not be running TOMOTAP firmware.")
                     # Still mark as connected — firmware might respond differently
                     self._connected = True
                     self.port = port

@@ -1,6 +1,6 @@
 /*
  * ══════════════════════════════════════════════════════════════
- *  TechTap — Arduino NFC Writer Firmware
+ *  TOMOTAP — Arduino NFC Writer Firmware
  *  Memory-optimized for Arduino Uno (2KB SRAM)
  *
  *  For PN532 NFC Module (I2C) + NTAG213/215/216 cards
@@ -79,7 +79,7 @@ void setup() {
     nfc.SAMConfig();
     nfc.setPassiveActivationRetries(0xFF);
 
-    Serial.println(F("READY|TechTap Firmware v1.0"));
+    Serial.println(F("READY|TOMOTAP Firmware v1.0"));
 }
 
 // ── Main Loop ─────────────────────────────────────────────────

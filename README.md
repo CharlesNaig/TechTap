@@ -1,13 +1,15 @@
 <div align="center">
 
+<img src="assets/tomotap-transparentbg.png.png" alt="TOMOTAP Logo" width="180">
+
 ```
-  _______________  _  _____  _   ___
- |_   _| __| __| || ||_   _|/ \ | _ \
-   | | | _|| _|| __ |  | | / _ \|  _/
-   |_| |___|___|_||_|  |_|/_/ \_\_|
+  _____ ___  __  __  ___ _____  _   ___
+ |_   _/ _ \|  \/  |/ _ \_   _|/ \ | _ \
+   | || (_) | |\/| | (_) || | / _ \|  _/
+   |_| \___/|_|  |_|\___/ |_|/_/ \_\_|
 ```
 
-# TechTap — Smart Identity via Tap
+# TOMOTAP — Smart Identity via Tap
 
 **A production-ready Python + Arduino NFC tag writer & reader CLI.**
 Write URLs, contacts, social links, WiFi credentials, and more to NFC cards that any smartphone can read instantly.
@@ -21,9 +23,9 @@ Write URLs, contacts, social links, WiFi credentials, and more to NFC cards that
 
 ---
 
-## What is TechTap?
+## What is TOMOTAP?
 
-TechTap is a lightweight **CLI clone of NFC Tools** that communicates with an Arduino-connected PN532 NFC module to write **NDEF-formatted data** onto NTAG213/215/216 cards. When tapped with a smartphone, the cards trigger actions like opening URLs, saving contacts, connecting to WiFi, and more — **no app required**.
+TOMOTAP is a lightweight **CLI clone of NFC Tools** that communicates with an Arduino-connected PN532 NFC module to write **NDEF-formatted data** onto NTAG213/215/216 cards. When tapped with a smartphone, the cards trigger actions like opening URLs, saving contacts, connecting to WiFi, and more — **no app required**.
 
 ## Features
 
@@ -47,16 +49,16 @@ TechTap is a lightweight **CLI clone of NFC Tools** that communicates with an Ar
 
 ## Quick Start — One-Command Install
 
-Get TechTap running with a single command. Installs Python, ADB, git, all dependencies, and launches TechTap.
+Get TOMOTAP running with a single command. Installs Python, ADB, git, all dependencies, and launches TOMOTAP.
 
 **Linux / macOS:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/CharlesNaig/TechTap/main/setup.sh | bash
+curl -sSL https://raw.githubusercontent.com/CharlesNaig/TOMOTAP/main/setup.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/CharlesNaig/TechTap/main/setup.ps1 | iex
+irm https://raw.githubusercontent.com/CharlesNaig/TOMOTAP/main/setup.ps1 | iex
 ```
 
 > The scripts will auto-install Python 3, pip, git, and ADB platform-tools if missing, then clone the repo and install all Python dependencies.
@@ -103,18 +105,18 @@ Use your Android phone's built-in NFC chip instead of Arduino + PN532/RC522.
      ...
    }
    ```
-   Or change it in TechTap Settings (option 14).
+   Or change it in TOMOTAP Settings (option 14).
 
 6. **Install Python dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-7. **Run TechTap:**
+7. **Run TOMOTAP:**
    ```bash
    python -m techtap
    ```
-   TechTap will:
+   TOMOTAP will:
    - Set up ADB reverse port forwarding
    - Start WebSocket + HTTP servers
    - Open Chrome on your phone with the NFC bridge page
@@ -122,7 +124,7 @@ Use your Android phone's built-in NFC chip instead of Arduino + PN532/RC522.
 
 8. **On your phone:** tap **"Enable NFC Scanner"** button in Chrome
 
-9. **Back on PC:** use TechTap CLI normally — write URLs, contacts, read tags, etc.
+9. **Back on PC:** use TOMOTAP CLI normally — write URLs, contacts, read tags, etc.
 
 > **How it works:** Python CLI → WebSocket → Chrome on phone → Web NFC API → NFC Tag. All communication goes over USB via ADB reverse port forwarding. No internet needed.
 
@@ -160,8 +162,8 @@ Use your Android phone's built-in NFC chip instead of Arduino + PN532/RC522.
 
 ```bash
 # Clone the repository
-git clone https://github.com/CharlesNaig/TechTap.git
-cd TechTap
+git clone https://github.com/CharlesNaig/TOMOTAP.git
+cd TOMOTAP
 
 # Install dependencies
 pip install -r requirements.txt
@@ -170,7 +172,7 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-### 5. Run TechTap
+### 5. Run TOMOTAP
 
 ```bash
 # Option A: Module
@@ -187,7 +189,7 @@ techtap
 
 ```
 ╭────────────────────────────────╮
-│       TECHTAP CLI              │
+│       TOMOTAP CLI              │
 ├──────┬─────────────────────────┤
 │ [1]  │ Write Website URL       │
 │ [2]  │ Write Contact (vCard)   │
@@ -215,12 +217,12 @@ Select option: 1
 
 ── Write Website URL ──
 
-Enter URL [https://]: https://techtap.dev
+Enter URL [https://]: https://tomotap.dev
 
 ╭─ Data Preview ────────────────────╮
 │ Type:  URL                        │
 │ Size:  22 bytes                   │
-│ Data:  https://techtap.dev        │
+│ Data:  https://tomotap.dev        │
 │  ✓ NTAG213: 15.3% (122 free)     │
 │  ✓ NTAG215: 4.4% (482 free)      │
 │  ✓ NTAG216: 2.5% (866 free)      │
@@ -267,7 +269,7 @@ Arduino → PC RESPONSE|DATA\n        VERIFY_OK|A3FF2219\n
 ## Project Structure
 
 ```
-TechTap/
+TOMOTAP/
 ├── techtap/
 │   ├── __init__.py          # Package init
 │   ├── __main__.py          # python -m techtap entry
@@ -328,7 +330,7 @@ Set `"port": "COM3"` (Windows) or `"port": "/dev/ttyUSB0"` (Linux) to lock to a 
 | Write fails | Hold card still during write, don't remove early |
 | iPhone won't read | Ensure NDEF is properly formatted, iOS is stricter |
 
-## Business Idea: TechTap Smart Cards
+## Business Idea: TOMOTAP Smart Cards
 
 | Tier | Price | Features |
 |------|-------|----------|
@@ -357,6 +359,6 @@ MIT License — free to use, modify, and sell.
 
 **Built with purpose. Tap into the future.**
 
-**TechTap** © 2026
+**TOMOTAP** © 2026
 
 </div>

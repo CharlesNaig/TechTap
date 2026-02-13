@@ -1,26 +1,26 @@
 # ─────────────────────────────────────────────────────────────────────
-#  TechTap — One-Command Setup for Windows (PowerShell)
+#  TOMOTAP — One-Command Setup for Windows (PowerShell)
 #  Installs Python 3, pip, ADB (platform-tools), clones the repo,
-#  installs dependencies, and launches TechTap.
+#  installs dependencies, and launches TOMOTAP.
 #
 #  Usage:
-#    irm https://raw.githubusercontent.com/CharlesNaig/TechTap/main/setup.ps1 | iex
+#    irm https://raw.githubusercontent.com/CharlesNaig/TOMOTAP/main/setup.ps1 | iex
 # ─────────────────────────────────────────────────────────────────────
 
 $ErrorActionPreference = "Stop"
 
 function Write-Banner {
     Write-Host ""
-    Write-Host "  _______________  _  _____  _   ___"       -ForegroundColor Cyan
-    Write-Host " |_   _| __| __| || ||_   _|/ \ | _ \"     -ForegroundColor Cyan
-    Write-Host "   | | | _|| _|| __ |  | | / _ \|  _/"     -ForegroundColor Cyan
-    Write-Host "   |_| |___|___|_||_|  |_|/_/ \_\_|"       -ForegroundColor Cyan
+    Write-Host "  _____ ___  __  __  ___ _____  _   ___"       -ForegroundColor Green
+    Write-Host " |_   _/ _ \|  \/  |/ _ \_   _|/ \ | _ \"     -ForegroundColor Green
+    Write-Host "   | || (_) | |\/| | (_) || | / _ \|  _/"     -ForegroundColor Green
+    Write-Host "   |_| \___/|_|  |_|\___/ |_|/_/ \_\_|"       -ForegroundColor Green
     Write-Host ""
-    Write-Host "  Smart Identity via Tap - Windows Setup"    -ForegroundColor Cyan
+    Write-Host "  Smart Identity via Tap - Windows Setup"    -ForegroundColor Green
     Write-Host ""
 }
 
-function Write-Step  { param($msg) Write-Host "`n-- $msg --" -ForegroundColor Cyan }
+function Write-Step  { param($msg) Write-Host "`n-- $msg --" -ForegroundColor Green }
 function Write-OK    { param($msg) Write-Host "[OK] $msg"    -ForegroundColor Green }
 function Write-Warn  { param($msg) Write-Host "[!]  $msg"    -ForegroundColor Yellow }
 function Write-Fail  { param($msg) Write-Host "[X]  $msg"    -ForegroundColor Red; exit 1 }
@@ -158,7 +158,7 @@ if (-not $adbFound) {
 
     $ptUrl   = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip"
     $ptZip   = "$env:TEMP\platform-tools.zip"
-    $ptDest  = "$env:LOCALAPPDATA\TechTap"
+    $ptDest  = "$env:LOCALAPPDATA\TOMOTAP"
 
     New-Item -ItemType Directory -Path $ptDest -Force | Out-Null
     Invoke-WebRequest -Uri $ptUrl -OutFile $ptZip -UseBasicParsing
@@ -183,18 +183,18 @@ if (-not $adbFound) {
     }
 }
 
-# ── Clone TechTap ────────────────────────────────────────────────────
-Write-Step "Setting up TechTap"
+# ── Clone TOMOTAP ────────────────────────────────────────────────────
+Write-Step "Setting up TOMOTAP"
 
-$installTo = "$env:USERPROFILE\Desktop\TechTap"
+$installTo = "$env:USERPROFILE\Desktop\TOMOTAP"
 
 if (Test-Path "$installTo\.git") {
-    Write-OK "TechTap already cloned at $installTo - pulling latest..."
+    Write-OK "TOMOTAP already cloned at $installTo - pulling latest..."
     Push-Location $installTo
     git pull origin main 2>&1 | Out-Null
 } else {
-    Write-OK "Cloning TechTap..."
-    git clone https://github.com/CharlesNaig/TechTap.git $installTo
+    Write-OK "Cloning TOMOTAP..."
+    git clone https://github.com/CharlesNaig/TOMOTAP.git $installTo
     Push-Location $installTo
 }
 
@@ -210,11 +210,11 @@ Write-Step "Setup complete!"
 
 Write-Host ""
 Write-Host "  ======================================================" -ForegroundColor Green
-Write-Host "    TechTap is ready!" -ForegroundColor Green
+Write-Host "    TOMOTAP is ready!" -ForegroundColor Green
 Write-Host "  ======================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  To start TechTap:"
-Write-Host "    cd $installTo; $python -m techtap" -ForegroundColor Cyan
+Write-Host "  To start TOMOTAP:"
+Write-Host "    cd $installTo; $python -m techtap" -ForegroundColor Green
 Write-Host ""
 Write-Host "  For Phone NFC mode, make sure to:"
 Write-Host "    1. Enable USB Debugging on your phone"
@@ -222,7 +222,7 @@ Write-Host "    2. Connect phone via USB"
 Write-Host "    3. Set reader_mode to 'phone' in config.json"
 Write-Host ""
 
-$launch = Read-Host "Launch TechTap now? [Y/n]"
+$launch = Read-Host "Launch TOMOTAP now? [Y/n]"
 if ($launch -ne "n" -and $launch -ne "N") {
     & $python -m techtap
 } else {
