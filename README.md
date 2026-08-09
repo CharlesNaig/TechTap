@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/tomotap-transparentbg.png.png" alt="TOMOTAP Logo" width="180">
+<img src="assets/tomotap-transparentbg.png.png" alt="TOMOTAP Logo" width="480">
 
 ```
   _____ ___  __  __  ___ _____  _   ___
