@@ -27,6 +27,13 @@ Write URLs, contacts, social links, WiFi credentials, and more to NFC cards that
 
 TOMOTAP is a lightweight **CLI clone of NFC Tools** that communicates with an Arduino-connected PN532 NFC module to write **NDEF-formatted data** onto NTAG213/215/216 cards. When tapped with a smartphone, the cards trigger actions like opening URLs, saving contacts, connecting to WiFi, and more — **no app required**.
 
+### About the project
+
+TOMOTAP explores programmable physical identity: one reusable NFC tag can share a
+portfolio, contact card, Wi-Fi profile, social link, or custom message. The project
+supports both an Arduino/PN532 reader and an Android Web NFC bridge, with local write
+history and verification built into a friendly terminal workflow.
+
 ## Features
 
 | Feature | Description |
@@ -47,21 +54,28 @@ TOMOTAP is a lightweight **CLI clone of NFC Tools** that communicates with an Ar
 | **Auto Port Detection** | Finds your Arduino automatically |
 | **📱 Phone NFC Mode** | Use your Android phone as the NFC reader via USB |
 
-## Quick Start — One-Command Install
+## Quick start
 
-Get TOMOTAP running with a single command. Installs Python, ADB, git, all dependencies, and launches TOMOTAP.
+Clone the repository first so you can inspect the setup script before running it.
 
 **Linux / macOS:**
 ```bash
-curl -sSL https://raw.githubusercontent.com/CharlesNaig/TOMOTAP/main/setup.sh | bash
+git clone https://github.com/CharlesNaig/TomoTap.git
+cd TomoTap
+less setup.sh
+bash setup.sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/CharlesNaig/TOMOTAP/main/setup.ps1 | iex
+git clone https://github.com/CharlesNaig/TomoTap.git
+Set-Location TomoTap
+Get-Content .\setup.ps1
+.\setup.ps1
 ```
 
-> The scripts will auto-install Python 3, pip, git, and ADB platform-tools if missing, then clone the repo and install all Python dependencies.
+> Setup scripts may install Python, pip, Git, ADB platform-tools, and project
+> dependencies. Review them and run them from a trusted checkout.
 
 ---
 
@@ -352,6 +366,11 @@ Perfect for students, networking events, and small businesses.
 ## License
 
 MIT License — free to use, modify, and sell.
+
+## About the author
+
+Created by [Charles Naig](https://github.com/CharlesNaig) as a practical bridge between
+software profiles and physical, tap-based interactions.
 
 ---
 

@@ -10,7 +10,10 @@ readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
-    {name = "TOMOTAP"}
+    {name = "Charles Naig"}
+]
+maintainers = [
+    {name = "Charles Naig"}
 ]
 keywords = ["nfc", "rfid", "ndef", "arduino", "ntag", "cli"]
 classifiers = [
@@ -38,8 +41,10 @@ dependencies = [
 techtap = "techtap.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/CharlesNaig/TOMOTAP"
-Repository = "https://github.com/CharlesNaig/TOMOTAP"
+Homepage = "https://github.com/CharlesNaig/TomoTap"
+Repository = "https://github.com/CharlesNaig/TomoTap"
+Issues = "https://github.com/CharlesNaig/TomoTap/issues"
+Documentation = "https://github.com/CharlesNaig/TomoTap#readme"
 
 [tool.setuptools]
 packages = ["techtap"]

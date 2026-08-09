@@ -1,6 +1,6 @@
 {
   "serial": {
-    "port": "COM24",
+    "port": "auto",
     "baudrate": 115200,
     "timeout": 5,
     "write_timeout": 5
